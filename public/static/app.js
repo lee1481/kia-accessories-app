@@ -308,11 +308,114 @@ async function startAssignment(assignmentId) {
   if (!a) return;
 
   selectedAssignment = a;
-
-  // 접수 카드 클릭 시 상태는 변경하지 않음
-  // (상태 변경은 지사 저장/확정/완료 액션에서만 서버가 자동 처리)
   console.log('[startAssignment] assignment selected:', assignmentId, 'current status:', a.status);
 
+  // ── 이어하기: 이 assignment에 연결된 draft/진행중 보고서 자동 복원 ──
+  try {
+    // 1) 로컬 캐시에서 먼저 탐색
+    const localReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+    let draftReport = localReports.find(r =>
+      (r.assignment_id === assignmentId || r.assignmentId === assignmentId ||
+       r.customerInfo?.assignmentId === assignmentId) &&
+      r.status !== 'completed'
+    );
+
+    // 2) 로컬에 없으면 서버에서 조회
+    if (!draftReport) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`/api/reports/list`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000
+        });
+        if (res.data.success) {
+          draftReport = res.data.reports.find(r =>
+            (r.assignment_id === assignmentId || r.assignmentId === assignmentId ||
+             r.customerInfo?.assignmentId === assignmentId) &&
+            r.status !== 'completed'
+          );
+        }
+      } catch(e) {
+        console.warn('[startAssignment] server report lookup failed:', e);
+      }
+    }
+
+    if (draftReport) {
+      // ── draft 복원 ──
+      const reportId = draftReport.report_id || draftReport.reportId || draftReport.id;
+      console.log('[startAssignment] draft found, restoring:', reportId, 'status:', draftReport.status);
+
+      currentReportId = reportId;
+      ocrData         = draftReport.customerInfo || draftReport.customer_info || {};
+      selectedPackages = draftReport.packages || [];
+      if (typeof ocrData === 'string') { try { ocrData = JSON.parse(ocrData); } catch(e) { ocrData = {}; } }
+
+      // 패키지가 문자열로 저장된 경우 파싱
+      if (typeof selectedPackages === 'string') {
+        try { selectedPackages = JSON.parse(selectedPackages); } catch(e) { selectedPackages = []; }
+      }
+
+      // 악세사리 복원
+      if (draftReport.accessories) {
+        try {
+          const acc = typeof draftReport.accessories === 'string'
+            ? JSON.parse(draftReport.accessories) : draftReport.accessories;
+          if (acc && typeof acc === 'object') selectedAccessories = acc;
+        } catch(e) {}
+      }
+
+      // 입력 필드 복원 (setTimeout으로 DOM 준비 후)
+      setTimeout(() => {
+        if (draftReport.installDate)    { const el = document.getElementById('installDate');    if (el) el.value = draftReport.installDate; }
+        if (draftReport.installTime)    { const el = document.getElementById('installTime');    if (el) el.value = draftReport.installTime; }
+        if (draftReport.installAddress) { const el = document.getElementById('installAddress'); if (el) el.value = draftReport.installAddress; }
+        if (draftReport.notes)          { const el = document.getElementById('notes');          if (el) el.value = draftReport.notes; }
+        if (draftReport.installerName)  { const el = document.getElementById('installerName'); if (el) el.value = draftReport.installerName; }
+        // 고객정보
+        const name = ocrData.receiverName || a.customer_name || '';
+        const phone = ocrData.receiverPhone || a.customer_phone || '';
+        const addr = draftReport.installAddress || ocrData.receiverAddress || a.customer_address || '';
+        const nameEl = document.getElementById('customerName');
+        const phoneEl = document.getElementById('customerPhone');
+        const addrEl  = document.getElementById('installAddress');
+        if (nameEl)  nameEl.value  = name;
+        if (phoneEl) phoneEl.value = phone;
+        if (addrEl && addrEl.value === '') addrEl.value = addr;
+      }, 300);
+
+      // ── 마지막 작업 단계로 이동 ──
+      // 설치날짜까지 있으면 → 3단계, 제품선택만 있으면 → 2단계
+      const hasPackages = selectedPackages && selectedPackages.length > 0;
+      const hasInstallDate = !!(draftReport.installDate);
+      const targetStep = hasInstallDate ? 3 : (hasPackages ? 2 : 2);
+
+      currentStep = targetStep;
+      updateStepIndicator();
+      showCurrentSection();
+
+      if (targetStep === 2 || targetStep === 3) {
+        setTimeout(() => {
+          if (allPackages.length === 0) {
+            loadPackages().then(() => {
+              // 선택된 제품 브랜드로 탭 이동
+              const brand = selectedPackages[0]?.brand || 'milwaukee';
+              showBrand(brand);
+              if (targetStep === 2) displayPackages(brand);
+            });
+          } else {
+            const brand = selectedPackages[0]?.brand || 'milwaukee';
+            showBrand(brand);
+            if (targetStep === 2) displayPackages(brand);
+          }
+        }, 200);
+      }
+      return; // draft 복원 완료, 이하 기존 로직 건너뜀
+    }
+  } catch(e) {
+    console.warn('[startAssignment] draft restore failed, fallback to normal flow:', e);
+  }
+
+  // ── draft 없음: 기존 로직 그대로 (2단계 처음부터) ──
   // 3단계 고객정보 자동 채우기
   setTimeout(() => {
     const nameEl    = document.getElementById('customerName');
