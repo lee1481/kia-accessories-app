@@ -3447,14 +3447,21 @@ function displayRevenueList(reports) {
     let reportConsumerPrice = 0;
     
     let reportMarginAmount = 0;
+    let reportMarginRateSum = 0;
+    let reportMarginRateCount = 0;
     packages.forEach(pkg => {
       const margin = getMarginByPackageId(pkg.id);
       if (margin) {
         reportRevenue += margin.revenue;
         reportConsumerPrice += margin.consumerPrice;
         reportMarginAmount += (margin.marginAmount || 0);
+        reportMarginRateSum += margin.marginRate;
+        reportMarginRateCount++;
       }
     });
+    const reportMarginRate = reportMarginRateCount > 0
+      ? (reportMarginRateSum / reportMarginRateCount).toFixed(1)
+      : 0;
     
     totalRevenue += reportRevenue;
     totalConsumerPrice += reportConsumerPrice;
@@ -3464,7 +3471,8 @@ function displayRevenueList(reports) {
       ...report,
       revenue: reportRevenue,
       consumerPrice: reportConsumerPrice,
-      marginAmount: reportMarginAmount
+      marginAmount: reportMarginAmount,
+      marginRate: reportMarginRate
     });
   });
   
@@ -3482,9 +3490,7 @@ function displayRevenueList(reports) {
     const installerName = report.installerName || '-';
     const packages = report.packages || [];
     const productNames = packages.map(p => p.fullName || p.name).join(', ');
-    const marginRate = report.consumerPrice > 0 
-      ? ((report.revenue / report.consumerPrice) * 100).toFixed(1) 
-      : 0;
+    const marginRate = report.marginRate || 0;
     
     return `
       <tr class="hover:bg-gray-50">
@@ -3512,9 +3518,7 @@ function displayRevenueList(reports) {
       const installerName = report.installerName || '-';
       const packages = report.packages || [];
       const productNames = packages.map(p => p.fullName || p.name).join(', ');
-      const marginRate = report.consumerPrice > 0 
-        ? ((report.revenue / report.consumerPrice) * 100).toFixed(1) 
-        : 0;
+      const marginRate = report.marginRate || 0;
       
       return `
         <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
