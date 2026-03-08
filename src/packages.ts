@@ -29,7 +29,7 @@ export const milwaukeePackages: ProductPackage[] = [
     name: 'PV5 밀워키 워크스테이션',
     fullName: 'PV5 기아 밀워키 워크스테이션',
     description: '격벽타공판 + 격벽2단선반 + 워크스페이스 + 툴박스',
-    price: 4850000,
+    price: 5398000,
     image: '/static/images/milwaukee-workstation.jpg',
     sections: [
       {
@@ -85,7 +85,7 @@ export const milwaukeePackages: ProductPackage[] = [
     name: 'PV5 밀워키 스마트 에디션',
     fullName: 'PV5 기아 밀워키 스마트 에디션',
     description: '격벽타공판 + 격벽2단선반 + 3단선반 + 툴박스',
-    price: 4490000,
+    price: 4998000,
     image: '/static/images/milwaukee-smart.jpg',
     hasPositionOption: true, // UPDATED
     sections: [
@@ -251,7 +251,7 @@ export const kiaPackages: ProductPackage[] = [
     name: '기아 PV5 워크스테이션',
     fullName: '기아 PV5 순정형 워크스테이션',
     description: '격벽타공판 + 3단부품선반 + 워크스페이스',
-    price: 3390000,
+    price: 4510000,
     image: '/static/images/kia-workstation.jpg',
     sections: [
       {
@@ -303,7 +303,7 @@ export const kiaPackages: ProductPackage[] = [
     name: '기아 PV5 스마트 패키지',
     fullName: '기아 PV5 순정형 스마트 패키지',
     description: '격벽타공판 + 2단선반 + 3단선반',
-    price: 3600000,
+    price: 4070000,
     image: '/static/images/kia-smart.jpg',
     hasPositionOption: true, // UPDATED
     sections: [
