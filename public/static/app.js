@@ -3400,6 +3400,7 @@ function displayRevenueList(reports) {
   const totalRevenueEl = document.getElementById('totalRevenue');
   const totalCountEl = document.getElementById('totalCount');
   const averageRevenueEl = document.getElementById('averageRevenue');
+  const totalMarginEl = document.getElementById('totalMargin');
   
   if (!tableBody) {
     console.error('revenueTableBody not found');
@@ -3430,12 +3431,14 @@ function displayRevenueList(reports) {
     if (totalRevenueEl) totalRevenueEl.textContent = '₩0';
     if (totalCountEl) totalCountEl.textContent = '0건';
     if (averageRevenueEl) averageRevenueEl.textContent = '₩0';
+    if (totalMarginEl) totalMarginEl.textContent = '₩0';
     return;
   }
   
   // 매출 통계 계산
   let totalRevenue = 0;
   let totalConsumerPrice = 0;
+  let totalMarginAmount = 0;
   const revenueDetails = [];
   
   reports.forEach(report => {
@@ -3455,6 +3458,7 @@ function displayRevenueList(reports) {
     
     totalRevenue += reportRevenue;
     totalConsumerPrice += reportConsumerPrice;
+    totalMarginAmount += reportMarginAmount;
     
     revenueDetails.push({
       ...report,
@@ -3469,6 +3473,7 @@ function displayRevenueList(reports) {
   if (totalRevenueEl) totalRevenueEl.textContent = '₩' + totalRevenue.toLocaleString();
   if (totalCountEl) totalCountEl.textContent = reports.length + '건';
   if (averageRevenueEl) averageRevenueEl.textContent = '₩' + averageRevenue.toLocaleString();
+  if (totalMarginEl) totalMarginEl.textContent = '₩' + totalMarginAmount.toLocaleString();
   
   // 데스크톱 테이블 목록 업데이트
   tableBody.innerHTML = revenueDetails.map(report => {

@@ -3694,13 +3694,22 @@ app.get('/ocr', (c) => {
                     </div>
                     
                     <!-- 통계 대시보드: 모바일 세로/PC 가로 -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
                         <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
                             <div class="flex items-center gap-4 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
                                 <i class="fas fa-won-sign text-3xl text-blue-200 opacity-60 sm:mb-2"></i>
                                 <div>
                                     <p class="text-blue-100 text-sm sm:text-base mb-1">총 매출액</p>
                                     <p class="text-2xl sm:text-3xl font-bold" id="totalRevenue">₩0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+                            <div class="flex items-center gap-4 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
+                                <i class="fas fa-piggy-bank text-3xl text-red-200 opacity-60 sm:mb-2"></i>
+                                <div>
+                                    <p class="text-red-100 text-sm sm:text-base mb-1">총 마진</p>
+                                    <p class="text-2xl sm:text-3xl font-bold" id="totalMargin">₩0</p>
                                 </div>
                             </div>
                         </div>
