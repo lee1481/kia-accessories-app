@@ -3410,7 +3410,7 @@ function displayRevenueList(reports) {
     // 데스크톱 테이블
     tableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+        <td colspan="8" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
           <i class="fas fa-chart-line text-6xl mb-4 block"></i>
           <p>시공 완료된 문서가 없습니다.</p>
           <p class="text-sm mt-2">Step 5에서 "시공 완료" 버튼을 클릭하세요.</p>
@@ -3443,11 +3443,13 @@ function displayRevenueList(reports) {
     let reportRevenue = 0;
     let reportConsumerPrice = 0;
     
+    let reportMarginAmount = 0;
     packages.forEach(pkg => {
       const margin = getMarginByPackageId(pkg.id);
       if (margin) {
         reportRevenue += margin.revenue;
         reportConsumerPrice += margin.consumerPrice;
+        reportMarginAmount += (margin.marginAmount || 0);
       }
     });
     
@@ -3457,7 +3459,8 @@ function displayRevenueList(reports) {
     revenueDetails.push({
       ...report,
       revenue: reportRevenue,
-      consumerPrice: reportConsumerPrice
+      consumerPrice: reportConsumerPrice,
+      marginAmount: reportMarginAmount
     });
   });
   
@@ -3485,6 +3488,7 @@ function displayRevenueList(reports) {
         <td class="border border-gray-300 px-4 py-3 text-sm">${productNames || '-'}</td>
         <td class="border border-gray-300 px-4 py-3 text-right">₩${report.consumerPrice.toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600">₩${report.revenue.toLocaleString()}</td>
+        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-center">
           <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
             ${marginRate}%
@@ -3534,16 +3538,18 @@ function displayRevenueList(reports) {
               <p class="text-xs text-blue-600 mb-1">매출</p>
               <p class="text-base font-bold text-blue-600">₩${report.revenue.toLocaleString()}</p>
             </div>
+            <div class="bg-orange-50 p-3 rounded-lg">
+              <p class="text-xs text-orange-600 mb-1">마진금액</p>
+              <p class="text-base font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</p>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg">
+              <p class="text-xs text-green-600 mb-1">마진율</p>
+              <p class="text-base font-bold text-green-600">${marginRate}%</p>
+            </div>
           </div>
           
-          <!-- 마진율 & 접수/작성자 -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-600">마진율:</span>
-              <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                ${marginRate}%
-              </span>
-            </div>
+          <!-- 접수/작성자 -->
+          <div class="flex items-center justify-end">
             <div class="flex items-center gap-1 text-sm text-gray-600">
               <i class="fas fa-user text-gray-400"></i>
               <span>${installerName}</span>
@@ -3558,21 +3564,22 @@ function displayRevenueList(reports) {
 // 제품 ID로 매출 데이터 가져오기 (margins.ts 매핑)
 function getMarginByPackageId(packageId) {
   const marginData = {
-    'milwaukee-partition-panel': { consumerPrice: 968000, revenue: 213620, marginRate: 22.1 },
-    'milwaukee-2shelf-partition': { consumerPrice: 1210000, revenue: 251900, marginRate: 20.8 },
-    'milwaukee-3shelf-standard': { consumerPrice: 1830000, revenue: 422700, marginRate: 23.1 },
-    'milwaukee-workspace': { consumerPrice: 2230000, revenue: 483500, marginRate: 21.7 },
-    'milwaukee-3shelf-parts': { consumerPrice: 968000, revenue: 106920, marginRate: 11.0 },
-    'kia-partition-panel': { consumerPrice: 880000, revenue: 171200, marginRate: 19.5 },
-    'kia-2shelf-partition': { consumerPrice: 1210000, revenue: 210100, marginRate: 17.4 },
-    'kia-3shelf-standard': { consumerPrice: 1210000, revenue: 218900, marginRate: 18.1 },
-    'kia-workspace': { consumerPrice: 1760000, revenue: 412500, marginRate: 23.4 },
-    'milwaukee-floor-board': { consumerPrice: 990000, revenue: 265100, marginRate: 26.8 },
-    'kia-floor-board': { consumerPrice: 990000, revenue: 265100, marginRate: 26.8 },
-    'milwaukee-workstation': { consumerPrice: 4850000, revenue: 1214120, marginRate: 25.0 },
-    'milwaukee-smart': { consumerPrice: 4490000, revenue: 1153320, marginRate: 25.7 },
-    'kia-workstation': { consumerPrice: 3390000, revenue: 908200, marginRate: 26.8 },
-    'kia-smart': { consumerPrice: 3600000, revenue: 865300, marginRate: 24.0 }
+    'milwaukee-floor-board':      { consumerPrice: 990000,  revenue: 782100,  marginAmount: 265100,  marginRate: 33.9 },
+    'milwaukee-partition-panel':  { consumerPrice: 968000,  revenue: 764720,  marginAmount: 202160,  marginRate: 26.4 },
+    'milwaukee-2shelf-partition': { consumerPrice: 1210000, revenue: 955900,  marginAmount: 244900,  marginRate: 25.6 },
+    'milwaukee-3shelf-standard':  { consumerPrice: 1830000, revenue: 1445700, marginAmount: 283250,  marginRate: 19.6 },
+    'milwaukee-3shelf-parts':     { consumerPrice: 968000,  revenue: 764720,  marginAmount: 190470,  marginRate: 24.9 },
+    'milwaukee-workspace':        { consumerPrice: 2230000, revenue: 1761700, marginAmount: 511050,  marginRate: 29.0 },
+    'milwaukee-smart':            { consumerPrice: 4998000, revenue: 3948420, marginAmount: 995410,  marginRate: 25.2 },
+    'milwaukee-workstation':      { consumerPrice: 5398000, revenue: 4073240, marginAmount: 1223210, marginRate: 30.0 },
+    'kia-floor-board':            { consumerPrice: 990000,  revenue: 782100,  marginAmount: 265100,  marginRate: 33.9 },
+    'kia-partition-panel':        { consumerPrice: 880000,  revenue: 695200,  marginAmount: 195640,  marginRate: 28.1 },
+    'kia-2shelf-partition':       { consumerPrice: 990000,  revenue: 782100,  marginAmount: 216100,  marginRate: 27.6 },
+    'kia-3shelf-standard':        { consumerPrice: 1210000, revenue: 955900,  marginAmount: 249800,  marginRate: 26.1 },
+    'kia-3shelf-parts':           { consumerPrice: 880000,  revenue: 695200,  marginAmount: 167300,  marginRate: 24.1 },
+    'kia-workspace':              { consumerPrice: 1760000, revenue: 1390400, marginAmount: 455900,  marginRate: 32.8 },
+    'kia-smart':                  { consumerPrice: 4070000, revenue: 3215300, marginAmount: 926640,  marginRate: 28.8 },
+    'kia-workstation':            { consumerPrice: 4510000, revenue: 3562900, marginAmount: 1083940, marginRate: 30.4 }
   };
   
   return marginData[packageId] || null;
