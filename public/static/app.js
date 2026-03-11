@@ -2132,7 +2132,8 @@ async function loadReportsList() {
     const response = await axios.get(listUrl, { timeout: 10000 }); // UPDATED
       if (response.data.success) { // ★ length > 0 제거: 서버 성공이면 0건도 그대로 표시
         console.log('✅ Loaded from server (D1):', response.data.reports.length, 'reports'); // UPDATED
-        allReports = response.data.reports; // UPDATED
+        // completed(시공완료) 문서는 5단계에서 제외 - 6단계에서만 표시
+        allReports = response.data.reports.filter(r => r.status !== 'completed'); // UPDATED
         
         // 서버 데이터를 localStorage에 캐싱 (0건이면 캐시도 비움) // UPDATED
         try { // UPDATED
@@ -2182,7 +2183,8 @@ async function loadReportsList() {
       }
     }
     
-    allReports = localReports;
+    // completed(시공완료) 문서는 5단계에서 제외 - 6단계에서만 표시
+    allReports = localReports.filter(r => r.status !== 'completed');
     displayReportsList(allReports);
     
   } catch (error) {
