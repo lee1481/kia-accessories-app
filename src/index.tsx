@@ -2854,7 +2854,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed' AND branch_id = ?
+          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL) AND branch_id = ?
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `).bind(Number(user.branchId))
@@ -2867,7 +2867,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed' AND branch_id = ?
+          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL) AND branch_id = ?
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `).bind(Number(viewBranchIdCompleted))
@@ -2880,7 +2880,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed'
+          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL)
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `)
@@ -2928,6 +2928,140 @@ app.get('/api/reports/completed/list', async (c) => {
       success: false,
       reports: [],
     }, 500)
+  }
+})
+
+// ============================================================
+// API: 정산 완료 처리 POST /api/reports/:id/settle
+// ============================================================
+app.post('/api/reports/:id/settle', async (c) => {
+  const auth = await requireAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const { env } = c
+    const reportId = c.req.param('id')
+    const { settledLabel } = await c.req.json()
+    if (!settledLabel) {
+      return c.json({ success: false, error: '정산 라벨을 입력해주세요.' }, 400)
+    }
+    const now = new Date().toISOString()
+    const result = await env.DB.prepare(
+      `UPDATE reports SET is_settled = 1, settled_label = ?, settled_at = ?, updated_at = ?
+       WHERE report_id = ?`
+    ).bind(settledLabel, now, now, reportId).run()
+    if (result.meta.changes === 0) {
+      return c.json({ success: false, error: '해당 문서를 찾을 수 없습니다.' }, 404)
+    }
+    return c.json({ success: true, message: '정산 완료 처리되었습니다.' })
+  } catch (error: any) {
+    console.error('Settle error:', error)
+    return c.json({ success: false, error: '정산 처리 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// ============================================================
+// API: 정산 취소 (정산내역 → 6단계) POST /api/reports/:id/unsettle
+// ============================================================
+app.post('/api/reports/:id/unsettle', async (c) => {
+  const auth = await requireAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const { env } = c
+    const reportId = c.req.param('id')
+    const now = new Date().toISOString()
+    const result = await env.DB.prepare(
+      `UPDATE reports SET is_settled = 0, settled_label = NULL, settled_at = NULL, updated_at = ?
+       WHERE report_id = ?`
+    ).bind(now, reportId).run()
+    if (result.meta.changes === 0) {
+      return c.json({ success: false, error: '해당 문서를 찾을 수 없습니다.' }, 404)
+    }
+    return c.json({ success: true, message: '정산이 취소되었습니다. 6단계로 이동합니다.' })
+  } catch (error: any) {
+    console.error('Unsettle error:', error)
+    return c.json({ success: false, error: '정산 취소 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// ============================================================
+// API: 시공완료 되돌리기 (6단계 → 5단계) PATCH /api/reports/:id/revert-complete
+// ============================================================
+app.patch('/api/reports/:id/revert-complete', async (c) => {
+  const auth = await requireAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const { env } = c
+    const reportId = c.req.param('id')
+    const now = new Date().toISOString()
+    const result = await env.DB.prepare(
+      `UPDATE reports SET status = 'inst_confirmed', updated_at = ?
+       WHERE report_id = ? AND status = 'completed' AND (is_settled = 0 OR is_settled IS NULL)`
+    ).bind(now, reportId).run()
+    if (result.meta.changes === 0) {
+      return c.json({ success: false, error: '되돌릴 수 없습니다. (정산 완료된 문서이거나 존재하지 않는 문서입니다.)' }, 400)
+    }
+    return c.json({ success: true, message: '5단계로 이동되었습니다.' })
+  } catch (error: any) {
+    console.error('Revert complete error:', error)
+    return c.json({ success: false, error: '되돌리기 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// ============================================================
+// API: 정산내역 목록 조회 GET /api/reports/settled/list
+// ============================================================
+app.get('/api/reports/settled/list', async (c) => {
+  const auth = await requireAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const { env } = c
+    const user = auth.user as any
+    const viewBranchIdSettled = c.req.query('viewBranchId')
+    let stmt: any
+    if (user.role === 'branch' && user.branchId) {
+      stmt = env.DB.prepare(`
+        SELECT id, report_id, customer_info, packages, package_positions,
+               install_date, install_time, install_address, notes,
+               installer_name, image_key, image_filename,
+               created_at, updated_at, status, is_settled, settled_label, settled_at
+        FROM reports
+        WHERE is_settled = 1 AND branch_id = ?
+        ORDER BY settled_at DESC, install_date DESC
+        LIMIT 1000
+      `).bind(Number(user.branchId))
+    } else if (user.role === 'head' && viewBranchIdSettled) {
+      stmt = env.DB.prepare(`
+        SELECT id, report_id, customer_info, packages, package_positions,
+               install_date, install_time, install_address, notes,
+               installer_name, image_key, image_filename,
+               created_at, updated_at, status, is_settled, settled_label, settled_at
+        FROM reports
+        WHERE is_settled = 1 AND branch_id = ?
+        ORDER BY settled_at DESC, install_date DESC
+        LIMIT 1000
+      `).bind(Number(viewBranchIdSettled))
+    } else {
+      stmt = env.DB.prepare(`
+        SELECT id, report_id, customer_info, packages, package_positions,
+               install_date, install_time, install_address, notes,
+               installer_name, image_key, image_filename,
+               created_at, updated_at, status, is_settled, settled_label, settled_at
+        FROM reports
+        WHERE is_settled = 1
+        ORDER BY settled_at DESC, install_date DESC
+        LIMIT 1000
+      `)
+    }
+    const results = await stmt.all()
+    const reports = (results.results || []).map((r: any) => ({
+      ...r,
+      customer_info: typeof r.customer_info === 'string' ? JSON.parse(r.customer_info || '{}') : (r.customer_info || {}),
+      packages:      typeof r.packages      === 'string' ? JSON.parse(r.packages      || '[]') : (r.packages      || []),
+    }))
+    return c.json({ success: true, reports })
+  } catch (error: any) {
+    console.error('Settled list error:', error)
+    return c.json({ success: false, reports: [], error: '정산내역 조회 중 오류가 발생했습니다.' }, 500)
   }
 })
 
@@ -3258,6 +3392,10 @@ app.get('/ocr', (c) => {
                     <div class="step" id="step6" onclick="goToStep(6)" style="cursor: pointer;">
                         <i class="fas fa-chart-line text-2xl mb-2"></i>
                         <div>6. 매출 관리</div>
+                    </div>
+                    <div class="step" id="step7" onclick="goToStep(7)" style="cursor: pointer;">
+                        <i class="fas fa-archive text-2xl mb-2"></i>
+                        <div>7. 정산 내역</div>
                     </div>
                 </div>
 
@@ -3760,11 +3898,12 @@ app.get('/ocr', (c) => {
                                     <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">마진금액</th>
                                     <th class="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-700">마진율</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">접수/작성자</th>
+                                    <th class="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-700">관리</th>
                                 </tr>
                             </thead>
                             <tbody id="revenueTableBody">
                                 <tr>
-                                    <td colspan="8" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+                                    <td colspan="9" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
                                         <i class="fas fa-chart-line text-6xl mb-4"></i>
                                         <p>시공 완료된 문서가 없습니다.</p>
                                     </td>
@@ -3788,6 +3927,54 @@ app.get('/ocr', (c) => {
                         </button>
                     </div>
                 </div>
+
+                <!-- Step 7: 정산 내역 -->
+                <div id="settlement-section" class="bg-white rounded-lg shadow-lg p-4 sm:p-8 mb-8 hidden">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-archive text-purple-600 mr-2"></i>정산 내역
+                        </h2>
+                        <button onclick="loadSettlementList()" class="text-sm text-purple-600 hover:underline">
+                            <i class="fas fa-sync-alt mr-1"></i>새로고침
+                        </button>
+                    </div>
+
+                    <!-- 정산내역 목록 -->
+                    <div id="settlementList" class="space-y-4">
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-archive text-6xl mb-4 block"></i>
+                            <p>정산 완료된 내역이 없습니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-start">
+                        <button onclick="goToStep(6)"
+                                class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-base font-semibold">
+                            <i class="fas fa-arrow-left mr-2"></i>6단계 매출관리로
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 정산완료 모달 -->
+                <div id="settleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>정산 완료 처리
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">정산 라벨을 입력하세요. (예: 2026년 2월 정산)</p>
+                        <input id="settleLabel" type="text" placeholder="예: 2026년 2월 정산"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-400"/>
+                        <div class="flex gap-3 justify-end">
+                            <button onclick="closeSettleModal()"
+                                class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">취소</button>
+                            <button onclick="confirmSettle()"
+                                class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold">
+                                <i class="fas fa-check mr-1"></i>정산 완료
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </main>
 
             <!-- Footer -->

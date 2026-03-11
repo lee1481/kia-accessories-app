@@ -479,7 +479,7 @@ function goToStep(step) {
     if (!installDate) { alert('설치 날짜를 입력해주세요.'); return; }
     currentStep = 4; updateStepIndicator(); showCurrentSection();
     displayFinalPreview();
-  } else if (step === 5 || step === 6) {
+  } else if (step === 5 || step === 6 || step === 7) {
     currentStep = step; updateStepIndicator(); showCurrentSection();
   }
 }
@@ -1414,7 +1414,7 @@ function prevStep(step) {
 
 // 단계 표시기 업데이트
 function updateStepIndicator() {
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= 7; i++) {
     const step = document.getElementById(`step${i}`);
     if (step) {
       step.classList.remove('active', 'completed');
@@ -1436,6 +1436,8 @@ function showCurrentSection() {
   document.getElementById('confirm-section').classList.toggle('hidden', currentStep !== 4);
   document.getElementById('manage-section').classList.toggle('hidden', currentStep !== 5);
   document.getElementById('revenue-section')?.classList.toggle('hidden', currentStep !== 6);
+  document.getElementById('settlement-section')?.classList.toggle('hidden', currentStep !== 7);
+  if (currentStep === 7) loadSettlementList();
 
   // Step 2 진입 시 악세사리 항상 렌더링
   if (currentStep === 2) {
@@ -3411,7 +3413,7 @@ function displayRevenueList(reports) {
     // 데스크톱 테이블
     tableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+        <td colspan="9" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
           <i class="fas fa-chart-line text-6xl mb-4 block"></i>
           <p>시공 완료된 문서가 없습니다.</p>
           <p class="text-sm mt-2">Step 5에서 "시공 완료" 버튼을 클릭하세요.</p>
@@ -3506,6 +3508,12 @@ function displayRevenueList(reports) {
           </span>
         </td>
         <td class="border border-gray-300 px-4 py-3">${installerName}</td>
+        <td class="border border-gray-300 px-4 py-3">
+          <div class="flex flex-col gap-1">
+            <button onclick="revertToStep5('${report.reportId || report.report_id}')" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-undo mr-1"></i>5단계로</button>
+            <button onclick="openSettleModal('${report.reportId || report.report_id}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-check-circle mr-1"></i>정산완료</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
@@ -3558,10 +3566,14 @@ function displayRevenueList(reports) {
           </div>
           
           <!-- 접수/작성자 -->
-          <div class="flex items-center justify-end">
+          <div class="flex items-center justify-between mt-2">
             <div class="flex items-center gap-1 text-sm text-gray-600">
               <i class="fas fa-user text-gray-400"></i>
               <span>${installerName}</span>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="revertToStep5('${report.reportId || report.report_id}')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold"><i class="fas fa-undo mr-1"></i>5단계로</button>
+              <button onclick="openSettleModal('${report.reportId || report.report_id}')" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-check-circle mr-1"></i>정산완료</button>
             </div>
           </div>
         </div>
@@ -3751,3 +3763,220 @@ function applyRevenueFilter() { searchRevenue(); }
 // Step 6: 매출 관리
 // ========================================
 
+
+// ========================================
+// Step 7: 정산 내역 기능
+// ========================================
+
+let currentSettleReportId = null;
+
+// 정산완료 모달 열기
+function openSettleModal(reportId) {
+  currentSettleReportId = reportId;
+  // 기본 라벨 자동 생성 (예: 2026년 3월 정산)
+  const now = new Date();
+  const defaultLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 정산`;
+  document.getElementById('settleLabel').value = defaultLabel;
+  document.getElementById('settleModal').classList.remove('hidden');
+}
+
+// 정산완료 모달 닫기
+function closeSettleModal() {
+  currentSettleReportId = null;
+  document.getElementById('settleModal').classList.add('hidden');
+}
+
+// 정산완료 확인
+async function confirmSettle() {
+  if (!currentSettleReportId) return;
+  const label = document.getElementById('settleLabel').value.trim();
+  if (!label) { alert('정산 라벨을 입력해주세요.'); return; }
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post(`/api/reports/${currentSettleReportId}/settle`,
+      { settledLabel: label },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      closeSettleModal();
+      alert(`✅ 정산 완료!\n"${label}"으로 이동되었습니다.`);
+      loadRevenueData();
+    } else {
+      alert('❌ ' + (res.data.error || '정산 처리 실패'));
+    }
+  } catch (e) {
+    alert('❌ 정산 처리 중 오류가 발생했습니다.');
+  }
+}
+
+// 6단계로 되돌리기 (시공완료로 복원)
+async function revertToStep5(reportId) {
+  if (!confirm('이 문서를 5단계(저장문서)로 되돌리시겠습니까?\n\n6단계 매출관리에서 사라집니다.')) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.patch(`/api/reports/${reportId}/revert-complete`, {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      alert('✅ 5단계로 이동되었습니다.');
+      loadRevenueData();
+    } else {
+      alert('❌ ' + (res.data.error || '되돌리기 실패'));
+    }
+  } catch (e) {
+    alert('❌ 되돌리기 중 오류가 발생했습니다.');
+  }
+}
+
+// 정산내역 목록 로드
+async function loadSettlementList() {
+  const container = document.getElementById('settlementList');
+  if (!container) return;
+  try {
+    const token = localStorage.getItem('token');
+    const url = viewBranchId
+      ? `/api/reports/settled/list?viewBranchId=${viewBranchId}`
+      : '/api/reports/settled/list';
+    const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.data.success || res.data.reports.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12 text-gray-500">
+          <i class="fas fa-archive text-6xl mb-4 block"></i>
+          <p>정산 완료된 내역이 없습니다.</p>
+        </div>`;
+      return;
+    }
+    // 월별 그룹핑
+    const grouped = {};
+    res.data.reports.forEach(r => {
+      const label = r.settled_label || '미분류';
+      if (!grouped[label]) grouped[label] = [];
+      grouped[label].push(r);
+    });
+
+    container.innerHTML = Object.entries(grouped).map(([label, reports]) => {
+      // 해당 그룹 총 매출 계산
+      let groupRevenue = 0;
+      reports.forEach(report => {
+        const pkgs = report.packages || [];
+        pkgs.forEach(pkg => {
+          const m = getMarginByPackageId(pkg.id);
+          if (m) groupRevenue += m.revenue;
+        });
+      });
+
+      const rows = reports.map(report => {
+        const customerName = report.customer_info?.receiverName || '-';
+        const installDate = report.install_date || '-';
+        const installerName = report.installer_name || '-';
+        const pkgs = report.packages || [];
+        const productNames = pkgs.map(p => p.fullName || p.name).join(', ') || '-';
+        let revenue = 0;
+        pkgs.forEach(pkg => { const m = getMarginByPackageId(pkg.id); if (m) revenue += m.revenue; });
+        return `
+          <tr class="hover:bg-purple-50">
+            <td class="border border-gray-200 px-3 py-2 text-sm">${installDate}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm font-semibold">${customerName}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm">${productNames}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm text-right font-bold text-blue-600">₩${revenue.toLocaleString()}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm">${installerName}</td>
+            <td class="border border-gray-200 px-3 py-2 text-center">
+              <button onclick="revertToStep6('${report.report_id}')"
+                class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold whitespace-nowrap">
+                <i class="fas fa-undo mr-1"></i>6단계로
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      return `
+        <div class="border border-purple-200 rounded-xl overflow-hidden mb-4">
+          <button onclick="toggleSettleGroup('${label}')"
+            class="w-full flex items-center justify-between bg-purple-50 hover:bg-purple-100 px-5 py-4 transition">
+            <span class="font-bold text-purple-800 text-base">
+              <i class="fas fa-folder-open mr-2"></i>${label}
+              <span class="ml-2 text-sm font-normal text-purple-600">(${reports.length}건 / ₩${groupRevenue.toLocaleString()})</span>
+            </span>
+            <i class="fas fa-chevron-down text-purple-400" id="icon-${label}"></i>
+          </button>
+          <div id="group-${label}" class="hidden">
+            <!-- 데스크톱 테이블 -->
+            <div class="hidden md:block overflow-x-auto">
+              <table class="w-full border-collapse">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">시공일</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">고객명</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">제품</th>
+                    <th class="border border-gray-200 px-3 py-2 text-right text-xs font-bold text-gray-600">매출</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">작성자</th>
+                    <th class="border border-gray-200 px-3 py-2 text-center text-xs font-bold text-gray-600">관리</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <!-- 모바일 카드 -->
+            <div class="md:hidden divide-y divide-gray-100">
+              ${reports.map(report => {
+                const customerName = report.customer_info?.receiverName || '-';
+                const installDate = report.install_date || '-';
+                const pkgs = report.packages || [];
+                const productNames = pkgs.map(p => p.fullName || p.name).join(', ') || '-';
+                let revenue = 0;
+                pkgs.forEach(pkg => { const m = getMarginByPackageId(pkg.id); if (m) revenue += m.revenue; });
+                return `
+                  <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                      <span class="font-bold text-gray-800">${customerName}</span>
+                      <span class="text-xs text-gray-500">${installDate}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">${productNames}</p>
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-blue-600">₩${revenue.toLocaleString()}</span>
+                      <button onclick="revertToStep6('${report.report_id}')"
+                        class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold">
+                        <i class="fas fa-undo mr-1"></i>6단계로
+                      </button>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('loadSettlementList error:', e);
+    container.innerHTML = '<div class="text-center py-8 text-red-500">정산내역 로드 중 오류가 발생했습니다.</div>';
+  }
+}
+
+// 정산 그룹 토글
+function toggleSettleGroup(label) {
+  const group = document.getElementById(`group-${label}`);
+  const icon  = document.getElementById(`icon-${label}`);
+  if (!group) return;
+  const isHidden = group.classList.contains('hidden');
+  group.classList.toggle('hidden', !isHidden);
+  if (icon) icon.classList.toggle('fa-chevron-down', !isHidden);
+  if (icon) icon.classList.toggle('fa-chevron-up', isHidden);
+}
+
+// 정산내역 → 6단계로 되돌리기
+async function revertToStep6(reportId) {
+  if (!confirm('이 문서를 6단계(매출관리)로 되돌리시겠습니까?')) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post(`/api/reports/${reportId}/unsettle`, {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      alert('✅ 6단계 매출관리로 이동되었습니다.');
+      loadSettlementList();
+    } else {
+      alert('❌ ' + (res.data.error || '되돌리기 실패'));
+    }
+  } catch (e) {
+    alert('❌ 오류가 발생했습니다.');
+  }
+}
