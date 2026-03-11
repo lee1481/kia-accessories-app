@@ -2106,7 +2106,20 @@ app.post('/api/assignments', async (c) => {
       return c.json({ success: false, error: '존재하지 않는 지사입니다.' }, 400)
     }
 
-    const assignmentId = `ASG-${Date.now()}`
+    // ── 중복 접수 체크: 동일 고객명 + 동일 지사 + 동일 접수일 ──────────────
+    const finalOrderDate = orderDate || new Date().toISOString().split('T')[0]
+    const dupCheck = await env.DB.prepare(
+      `SELECT assignment_id FROM assignments
+       WHERE customer_name = ? AND branch_id = ? AND order_date = ?
+       LIMIT 1`
+    ).bind(customerName, parsedBranchId, finalOrderDate).first()
+    if (dupCheck) {
+      return c.json({ success: false, error: `이미 동일한 접수가 존재합니다. (${finalOrderDate} / ${customerName})` }, 409)
+    }
+
+    // ── assignmentId: Date.now() + 랜덤 4자리 (충돌 방지) ──────────────────
+    const rand4 = Math.floor(1000 + Math.random() * 9000)
+    const assignmentId = `ASG-${Date.now()}-${rand4}`
 
     await env.DB.prepare(`
       INSERT INTO assignments
@@ -2122,7 +2135,7 @@ app.post('/api/assignments', async (c) => {
       parsedBranchId,          // 검증된 정수값만 사용
       user?.id     || null,
       notes        || '',
-      orderDate    || new Date().toISOString().split('T')[0]
+      finalOrderDate
     ).run()
 
     return c.json({ success: true, message: '접수가 등록되었습니다!', assignmentId })
