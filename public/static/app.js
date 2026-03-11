@@ -3580,7 +3580,7 @@ function getMarginByPackageId(packageId) {
     'milwaukee-3shelf-parts':     { consumerPrice: 968000,  revenue: 764720,  marginAmount: 190470,  marginRate: 24.9 },
     'milwaukee-workspace':        { consumerPrice: 2230000, revenue: 1761700, marginAmount: 511050,  marginRate: 29.0 },
     'milwaukee-smart':            { consumerPrice: 4998000, revenue: 3948420, marginAmount: 995410,  marginRate: 25.2 },
-    'milwaukee-workstation':      { consumerPrice: 5398000, revenue: 4073240, marginAmount: 1223210, marginRate: 30.0 },
+    'milwaukee-workstation':      { consumerPrice: 5398000, revenue: 4264320, marginAmount: 1223210, marginRate: 30.0 },
     'kia-floor-board':            { consumerPrice: 990000,  revenue: 782100,  marginAmount: 265100,  marginRate: 33.9 },
     'kia-partition-panel':        { consumerPrice: 880000,  revenue: 695200,  marginAmount: 195640,  marginRate: 28.1 },
     'kia-2shelf-partition':       { consumerPrice: 990000,  revenue: 782100,  marginAmount: 216100,  marginRate: 27.6 },
