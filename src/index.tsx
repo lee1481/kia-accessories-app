@@ -3720,69 +3720,6 @@ app.get('/ocr', (c) => {
                     </h2>
                     
                     <!-- 마이그레이션 안내 (처음 진입 시 표시) -->
-                    <div id="migrationAlert" class="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 mb-4 sm:mb-6">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>
-                            </div>
-                            <div class="ml-3 flex-1">
-                                <h3 class="text-sm font-medium text-yellow-800">
-                                    ⚠️ D1 마이그레이션이 필요할 수 있습니다
-                                </h3>
-                                <div class="mt-2 text-sm text-yellow-700">
-                                    <p>매출 관리 기능을 처음 사용하시는 경우, D1 데이터베이스 마이그레이션이 필요합니다.</p>
-                                    
-                                    <!-- 자동 마이그레이션 버튼 -->
-                                    <div class="mt-3 space-y-3">
-                                        <button 
-                                            onclick="runMigration()" 
-                                            class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded inline-flex items-center w-full sm:w-auto justify-center text-base"
-                                        >
-                                            <i class="fas fa-database mr-2"></i>
-                                            자동 마이그레이션 실행 (0002)
-                                        </button>
-                                        <p class="mt-2 text-xs">
-                                            <i class="fas fa-info-circle mr-1"></i>
-                                            버튼을 클릭하면 D1 데이터베이스에 status 컬럼이 자동으로 추가됩니다.
-                                        </p>
-                                        
-                                        <!-- 3단계 상태 마이그레이션 버튼 (0003) -->
-                                        <button 
-                                            onclick="runConfirmedStatusMigration()" 
-                                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded inline-flex items-center w-full sm:w-auto justify-center text-base"
-                                        >
-                                            <i class="fas fa-sync-alt mr-2"></i>
-                                            3단계 상태 마이그레이션 (0003)
-                                        </button>
-                                        <p class="mt-2 text-xs text-blue-700">
-                                            <i class="fas fa-info-circle mr-1"></i>
-                                            예약 확정 기능을 사용하려면 이 버튼을 클릭하세요. (draft → confirmed → completed)
-                                        </p>
-                                    </div>
-                                    
-                                    <!-- 수동 마이그레이션 안내 (접기/펼치기) -->
-                                    <details class="mt-3">
-                                        <summary class="cursor-pointer font-bold hover:text-yellow-900">
-                                            <i class="fas fa-chevron-right mr-1"></i>
-                                            수동 마이그레이션 방법 (Cloudflare Dashboard)
-                                        </summary>
-                                        <div class="mt-2">
-                                            <ol class="list-decimal ml-5 mt-1">
-                                                <li><a href="https://dash.cloudflare.com" target="_blank" class="underline hover:text-yellow-900">Cloudflare Dashboard</a> 접속</li>
-                                                <li>Workers & Pages → D1 databases → pv5-reports-db 선택</li>
-                                                <li>Console 탭에서 다음 SQL 실행:
-                                                    <code class="block bg-yellow-100 p-2 mt-1 rounded text-xs">
-                                                        ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'completed'));
-                                                    </code>
-                                                </li>
-                                            </ol>
-                                        </div>
-                                    </details>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <!-- 검색 및 필터 (모바일 최적화) -->
                     <div class="mb-6">
                         <div class="space-y-3 sm:space-y-4 mb-4">
