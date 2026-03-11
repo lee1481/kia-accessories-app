@@ -2346,7 +2346,7 @@ app.get('/api/reports/list', async (c) => {
           r.created_at, r.updated_at, r.status,
           r.assignment_id as r_assignment_id
         FROM reports r
-        WHERE r.branch_id = ?
+        WHERE (r.branch_id = ? OR r.branch_id IS NULL)
         UNION ALL
         SELECT
           NULL as id,
@@ -2382,7 +2382,7 @@ app.get('/api/reports/list', async (c) => {
           r.created_at, r.updated_at, r.status,
           r.assignment_id as r_assignment_id
         FROM reports r
-        WHERE r.branch_id = ?
+        WHERE (r.branch_id = ? OR r.branch_id IS NULL)
         UNION ALL
         SELECT
           NULL as id,
