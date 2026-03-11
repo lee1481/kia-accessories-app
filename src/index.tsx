@@ -3890,6 +3890,9 @@ app.get('/ocr', (c) => {
                         <table class="w-full border-collapse">
                             <thead>
                                 <tr class="bg-gray-100">
+                                    <th class="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-700">
+                                        <input type="checkbox" id="selectAllRevenue" onclick="toggleSelectAllRevenue(this)" class="w-4 h-4 cursor-pointer">
+                                    </th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">시공 날짜</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">고객명</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">제품</th>
@@ -3903,7 +3906,7 @@ app.get('/ocr', (c) => {
                             </thead>
                             <tbody id="revenueTableBody">
                                 <tr>
-                                    <td colspan="9" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+                                    <td colspan="10" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
                                         <i class="fas fa-chart-line text-6xl mb-4"></i>
                                         <p>시공 완료된 문서가 없습니다.</p>
                                     </td>
@@ -3920,10 +3923,14 @@ app.get('/ocr', (c) => {
                         </div>
                     </div>
                     
-                    <div class="mt-6 flex justify-start">
+                    <div class="mt-6 flex items-center justify-between flex-wrap gap-3">
                         <button onclick="prevStep(5)" 
                                 class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-base font-semibold">
                             <i class="fas fa-arrow-left mr-2"></i>이전
+                        </button>
+                        <button onclick="openBulkSettleModal()"
+                                class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-base font-semibold">
+                            <i class="fas fa-check-double mr-2"></i>선택항목 일괄 정산완료
                         </button>
                     </div>
                 </div>

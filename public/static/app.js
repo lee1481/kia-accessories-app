@@ -3427,7 +3427,7 @@ function displayRevenueList(reports) {
     // 데스크톱 테이블
     tableBody.innerHTML = `
       <tr>
-        <td colspan="9" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+        <td colspan="10" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
           <i class="fas fa-chart-line text-6xl mb-4 block"></i>
           <p>시공 완료된 문서가 없습니다.</p>
           <p class="text-sm mt-2">Step 5에서 "시공 완료" 버튼을 클릭하세요.</p>
@@ -3510,6 +3510,9 @@ function displayRevenueList(reports) {
     
     return `
       <tr class="hover:bg-gray-50">
+        <td class="border border-gray-300 px-3 py-3 text-center">
+          <input type="checkbox" class="revenue-check w-4 h-4 cursor-pointer" value="${report.reportId || report.report_id}">
+        </td>
         <td class="border border-gray-300 px-4 py-3">${installDate}</td>
         <td class="border border-gray-300 px-4 py-3 font-semibold whitespace-nowrap">${customerName}</td>
         <td class="border border-gray-300 px-4 py-3 text-sm font-bold">${productNames || '-'}</td>
@@ -3994,3 +3997,91 @@ async function revertToStep6(reportId) {
     alert('❌ 오류가 발생했습니다.');
   }
 }
+
+// ========================================
+// 6단계: 일괄 정산완료 기능
+// ========================================
+
+// 전체선택 토글
+function toggleSelectAllRevenue(checkbox) {
+  document.querySelectorAll('.revenue-check').forEach(cb => {
+    cb.checked = checkbox.checked;
+  });
+}
+
+// 일괄 정산완료 모달 열기
+function openBulkSettleModal() {
+  const checked = document.querySelectorAll('.revenue-check:checked');
+  if (checked.length === 0) {
+    alert('⚠️ 정산할 항목을 먼저 선택해주세요.');
+    return;
+  }
+  const now = new Date();
+  const defaultLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 정산`;
+  document.getElementById('settleLabel').value = defaultLabel;
+  // 일괄 모드 표시
+  document.getElementById('settleModal').dataset.bulk = 'true';
+  document.getElementById('settleModal').classList.remove('hidden');
+}
+
+// 기존 confirmSettle 덮어쓰기 (단건 + 일괄 통합)
+async function confirmSettle() {
+  const label = document.getElementById('settleLabel').value.trim();
+  if (!label) { alert('정산 라벨을 입력해주세요.'); return; }
+
+  const isBulk = document.getElementById('settleModal').dataset.bulk === 'true';
+
+  if (isBulk) {
+    // 일괄 처리
+    const checked = document.querySelectorAll('.revenue-check:checked');
+    if (checked.length === 0) { closeSettleModal(); return; }
+    const ids = Array.from(checked).map(cb => cb.value);
+    closeSettleModal();
+    let successCount = 0;
+    const token = localStorage.getItem('token');
+    for (const id of ids) {
+      try {
+        const res = await axios.post(`/api/reports/${id}/settle`,
+          { settledLabel: label },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.data.success) successCount++;
+      } catch(e) { console.error('bulk settle error:', id, e); }
+    }
+    alert(`✅ ${successCount}건 정산 완료!\n"${label}"으로 이동되었습니다.`);
+    // 전체선택 체크박스 초기화
+    const selectAll = document.getElementById('selectAllRevenue');
+    if (selectAll) selectAll.checked = false;
+    loadRevenueList();
+  } else {
+    // 단건 처리 (기존 로직)
+    if (!currentSettleReportId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`/api/reports/${currentSettleReportId}/settle`,
+        { settledLabel: label },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        closeSettleModal();
+        alert(`✅ 정산 완료!\n"${label}"으로 이동되었습니다.`);
+        loadRevenueList();
+      } else {
+        alert('❌ ' + (res.data.error || '정산 처리 실패'));
+      }
+    } catch (e) {
+      alert('❌ 정산 처리 중 오류가 발생했습니다.');
+    }
+  }
+}
+
+// closeSettleModal 재정의 (bulk 플래그 초기화 포함)
+const _origCloseSettleModal = closeSettleModal;
+closeSettleModal = function() {
+  currentSettleReportId = null;
+  const modal = document.getElementById('settleModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.dataset.bulk = 'false';
+  }
+};
