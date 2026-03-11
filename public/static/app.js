@@ -3511,8 +3511,8 @@ function displayRevenueList(reports) {
     return `
       <tr class="hover:bg-gray-50">
         <td class="border border-gray-300 px-4 py-3">${installDate}</td>
-        <td class="border border-gray-300 px-4 py-3 font-semibold">${customerName}</td>
-        <td class="border border-gray-300 px-4 py-3 text-sm">${productNames || '-'}</td>
+        <td class="border border-gray-300 px-4 py-3 font-semibold whitespace-nowrap">${customerName}</td>
+        <td class="border border-gray-300 px-4 py-3 text-sm font-bold">${productNames || '-'}</td>
         <td class="border border-gray-300 px-4 py-3 text-right">₩${report.consumerPrice.toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600">₩${report.revenue.toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-right font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</td>
