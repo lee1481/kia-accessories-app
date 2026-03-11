@@ -3252,6 +3252,18 @@ async function completeReport(reportId) {
     
     if (response.data.success) {
       alert('✅ 시공이 완료되었습니다!');
+
+      // localStorage 캐시에서도 즉시 해당 문서 status를 completed로 동기화
+      try {
+        const cached = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+        const updated = cached.map(r =>
+          (r.reportId === reportId || r.report_id === reportId)
+            ? { ...r, status: 'completed' }
+            : r
+        );
+        localStorage.setItem('pv5_reports', JSON.stringify(updated));
+      } catch(e) { /* 캐시 실패는 무시 */ }
+
       loadReportsList(); // 목록 새로고침
       
       // Step 6 (매출 관리)로 자동 이동
