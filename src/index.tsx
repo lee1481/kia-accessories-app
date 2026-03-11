@@ -3355,10 +3355,17 @@ app.get('/ocr', (c) => {
                                 <p style="color: #94a3b8; font-size: 0.72rem; margin-top: 1px; letter-spacing: 0.02em;">PV5 시공관리 시스템</p>
                             </div>
                         </div>
-                        <!-- 유저 정보 + 로그아웃 -->
+                        <!-- 사용설명서 버튼 + 유저 정보 + 로그아웃 -->
                         <div class="flex items-center gap-2 mobile-header-right" id="headerUserArea">
                             <!-- app.js에서 동적으로 채워짐 -->
                         </div>
+                        <a href="/static/manual.html" target="_blank"
+                           style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:600; text-decoration:none; white-space:nowrap; transition:background 0.2s;"
+                           onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+                           onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                            <i class="fas fa-book-open"></i>
+                            <span class="hidden sm:inline">사용설명서</span>
+                        </a>
                     </div>
                 </div>
             </header>
