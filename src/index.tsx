@@ -2994,7 +2994,7 @@ app.patch('/api/reports/:id/revert-complete', async (c) => {
     const reportId = c.req.param('id')
     const now = new Date().toISOString()
     const result = await env.DB.prepare(
-      `UPDATE reports SET status = 'inst_confirmed', updated_at = ?
+      `UPDATE reports SET status = 'confirmed', updated_at = ?
        WHERE report_id = ? AND status = 'completed' AND (is_settled = 0 OR is_settled IS NULL)`
     ).bind(now, reportId).run()
     if (result.meta.changes === 0) {

@@ -3800,7 +3800,7 @@ async function confirmSettle() {
     if (res.data.success) {
       closeSettleModal();
       alert(`✅ 정산 완료!\n"${label}"으로 이동되었습니다.`);
-      loadRevenueData();
+      loadRevenueList();
     } else {
       alert('❌ ' + (res.data.error || '정산 처리 실패'));
     }
@@ -3819,7 +3819,7 @@ async function revertToStep5(reportId) {
     );
     if (res.data.success) {
       alert('✅ 5단계로 이동되었습니다.');
-      loadRevenueData();
+      loadRevenueList();
     } else {
       alert('❌ ' + (res.data.error || '되돌리기 실패'));
     }
