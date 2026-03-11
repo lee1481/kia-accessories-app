@@ -23,65 +23,89 @@
 - **GitHub**: https://github.com/lee1481/pv5-webapp (브랜치: dev-multi-tenant)
 
 ## 버전 정보
-- **현재 버전**: v3.2
-- **마지막 업데이트**: 2026-02-23
+- **현재 버전**: v3.9
+- **마지막 업데이트**: 2026-03-11
 - **활성 브랜치**: `dev-multi-tenant`
 
 ---
 
 ## 최근 업데이트 내역 (최신순)
 
-### 2026-02-23 (v3.2) - 최신 🚀
+### 2026-03-11 (v3.9) - 최신 🚀
+- ✅ **5단계 저장문서 미표시 버그 수정**
+  - 원인: report 저장 시 `branch_id = null`로 저장되어 쿼리에서 누락
+  - DB 직접 수정: `branch_id = null`인 4건 → `branch_id = 3`으로 업데이트
+  - 백엔드 쿼리 수정: `WHERE r.branch_id = ?` → `WHERE (r.branch_id = ? OR r.branch_id IS NULL)`
+  - 향후 branch_id 누락 건도 5단계에 정상 표시되도록 근본 수정
+- ✅ **1단계 배정목록 중복 표시 버그 수정**
+  - 원인: `NOT EXISTS` 조건에서 `branch_id` 매칭 오류로 저장된 건이 1단계에 재출현
+  - `AND r2.branch_id = a.branch_id` 조건 제거 → `assignment_id`만으로 중복 체크
+- ✅ **6단계 마이그레이션 배너 완전 삭제**
+  - ⚠️ D1 마이그레이션 안내 배너(노란색) 제거
+  - 자동 마이그레이션 버튼(0002, 0003) 제거
+- ✅ **6단계 헤더 위 이전 버튼 삭제**
+  - `prevStep(5)` 이전 버튼 제거, 일괄 정산완료 버튼만 우측 정렬 유지
+
+### 2026-03-10 (v3.8)
+- ✅ **7단계 정산내역 월별 엑셀 다운로드**
+- ✅ **7단계 정산내역 건수/금액 글씨 확대 + 볼드**
+- ✅ **밀워키 워크스테이션 확정 단가 저장** (4,264,420원, 마진율 28.7%)
+- ✅ **6단계 일괄 정산완료 기능** (체크박스 전체선택 + 일괄 처리)
+- ✅ **6단계 UI 개선** (고객명 한 줄, 제품명 굵게)
+- ✅ **7단계 정산내역 월별 엑셀 다운로드**
+  - 월별 그룹별 📥 Excel 다운로드 버튼 추가
+  - 파일명 자동 생성 (예: `2026년 2월 정산.xlsx`)
+- ✅ **7단계 정산내역 건수/금액 글씨 확대 + 볼드**
+  - text-sm → text-base, font-normal → font-bold
+- ✅ **밀워키 워크스테이션 확정 단가 저장**
+  - 매출: 4,264,420원 (확정)
+  - 마진율: 28.7% (마진금액 1,223,210 ÷ 매출 4,264,420)
+- ✅ **6단계 일괄 정산완료 기능**
+  - 헤더 전체선택 체크박스 + 각 행 체크박스 추가
+  - 선택항목 일괄 정산완료 버튼 추가
+  - 체크박스 크기 확대(w-5 h-5), td 클릭 영역 전체 활성화
+- ✅ **6단계 UI 개선**
+  - 고객명 한 줄 표시 (whitespace-nowrap)
+  - 제품명 굵은 글씨 (font-bold)
+
+### 2026-03-10 (v3.7)
+- ✅ **7단계 정산내역 탭 신규 추가**
+  - 스텝 인디케이터 6단계 → 7단계로 확장
+  - 월별 아코디언(예: 2026년 2월 정산 N건/₩xx)
+  - ↩ 6단계로 되돌리기 버튼 (정산 취소)
+- ✅ **6단계 정산완료 기능**
+  - 각 행에 [↩ 5단계로] + [✅ 정산완료] 버튼 추가
+  - 정산완료 시 라벨 입력 팝업(기본 "2026년 N월 정산")
+  - 정산 완료된 항목은 6단계에서 사라지고 7단계로 이동
+- ✅ **5단계 ↔ 6단계 이동 개선**
+  - 시공완료 시 5단계에서 즉시 사라지고 6단계로 이동
+  - localStorage + 서버 캐시 동기화
+- ✅ **DB 마이그레이션 0008 추가**
+  - `is_settled` (정산여부), `settled_label` (정산 라벨), `settled_at` (정산일시)
+- ✅ **백엔드 API 4개 추가**
+  - `POST /api/reports/:id/settle` (정산완료)
+  - `POST /api/reports/:id/unsettle` (정산취소)
+  - `PATCH /api/reports/:id/revert-complete` (5단계로 되돌리기)
+  - `GET /api/reports/settled/list` (정산내역 조회)
+
+### 2026-03-09 (v3.6)
+- ✅ **중복 접수 방지 강화**
+  - 동일 고객+지사+날짜 중복 시 등록 차단
+  - 오류 메시지: "이미 동일한 접수가 존재합니다. (날짜/고객명)"
+  - assignmentId에 밀리초+4자리 랜덤 suffix 추가
+
+### 2026-02-23 (v3.2)
 - ✅ **5단계 Excel 내보내기 연락처·주소 누락 근본 수정**
-  - 전역 `allReports` 변수를 우선 사용 (지역변수 충돌 해결)
-  - `customerInfo` 이중 직렬화(JSON 문자열 → 객체) 파싱 보완
-  - 다중 필드명 fallback: `receiverPhone` / `phone`, `receiverAddress` / `address`
 - ✅ **6단계 검색 기능 근본 수정**
-  - `searchRevenue()`, `resetRevenueSearch()`, `updateRevenueFilters()` 함수 신규 추가
-  - 고객명 필터 로직 `loadRevenueList()`에 완전 연동
 - ✅ **6단계 Excel 다운로드 근본 수정**
-  - 함수명 불일치 해결: HTML `onclick="exportRevenueToExcel()"` ↔ `downloadRevenueExcel()` → 양방향 alias 추가
-  - 엘리먼트 ID 불일치 해결: `revenueList` → `revenueTableBody`로 수정
-  - 에러 핸들링 강화 (try-catch + 사용자 알림)
 
 ### 2026-02-22 (v3.1)
 - ✅ **6단계 Excel 다운로드 서버 D1 데이터 조회로 수정**
-  - 기존 localStorage만 조회 → `/api/reports/list` 서버 API 우선 조회로 변경
-  - 필드명 오류 수정: `phone`/`address` → `receiverPhone`/`receiverAddress`
-- ✅ **본사 테이블 UI 개선**
-  - 상태 컬럼을 주문자명 앞으로 이동 (접수일자 → 상태 → 주문자명 순)
-  - 주문자명·상태 배지·제품명 `whitespace-nowrap` 적용 (두 줄 깨짐 해결)
+- ✅ **본사 테이블 UI 개선** (상태 컬럼 위치 변경)
 
 ### 2026-02-21 (v3.0) - 멀티테넌트 런칭
 - ✅ **1단계→5단계 저장 후 1단계 미사라짐 근본 수정**
-  - `loadReport()` 시 `selectedAssignment` 복원 로직 추가
-  - `ocrData.assignmentId` fallback 추가 (단계별 2곳)
-  - 로컬 상태를 서버 규칙과 동기화 (`in_progress` 정렬 기준)
 - ✅ **배정 상태 자동 동기화 (assignments ↔ reports)**
-  - `draft + 날짜 없음` → `adjusting`
-  - `draft + 날짜 있음` → `in_progress`
-  - `confirmed` → `in_progress`
-  - `inst_confirmed` → `inst_confirmed`
-  - `completed` → `completed`
-- ✅ **DB 즉시 수정**: ASG-1771819413043 (윤진) in_progress 정상 적용
-
-### 2026-02-20 (v2.9)
-- ✅ **모바일 배정목록 헤더 텍스트 줄바꿈 깨짐 수정**
-- ✅ **모바일 UI 개선**: step 3 grid, 세로형 통계 카드, 반응형 헤더
-- ✅ **저장 문서 카드 상태별 정렬** (진행중 위, 시공완료 아래)
-- ✅ **본사 헤더에 홈 버튼 추가** (head role 전용)
-- ✅ **수정저장 시 assignment_id 보존 로직 추가**
-- ✅ **상태 동기화 근본 수정** (DB CHECK 확장, 프론트 PATCH 제거)
-
-### 2026-02-11 (v2.6)
-- ✅ **3단계 상태 관리 시스템 완성**
-  - 예약 접수 중 (draft) → 예약 확정 (confirmed) → 시공 완료 (completed)
-  - Step 5 상태별 배지 표시 (파란/초록/회색)
-  - 예약 확정 버튼 추가 (`PATCH /api/reports/:id/confirm`)
-  - Step 6 자동 마이그레이션 버튼 (0003) 추가
-- ✅ **Step 5 UI 개선**
-  - 목록 카드에서 JPG 저장 버튼 제거 (상세보기 모달에서만 제공)
-  - 문서 ID 제거 → 설치 주소/시간 표시로 변경
 
 ---
 
