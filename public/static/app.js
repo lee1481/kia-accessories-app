@@ -3914,7 +3914,7 @@ async function loadSettlementList() {
             class="w-full flex items-center justify-between bg-purple-50 hover:bg-purple-100 px-5 py-4 transition">
             <span class="font-bold text-purple-800 text-base">
               <i class="fas fa-folder-open mr-2"></i>${label}
-              <span class="ml-2 text-sm font-normal text-purple-600">(${reports.length}건 / ₩${groupRevenue.toLocaleString()})</span>
+              <span class="ml-2 text-base font-bold text-purple-700">(${reports.length}건 / ₩${groupRevenue.toLocaleString()})</span>
             </span>
             <i class="fas fa-chevron-down text-purple-400" id="icon-${label}"></i>
           </button>
