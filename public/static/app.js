@@ -3510,8 +3510,10 @@ function displayRevenueList(reports) {
     
     return `
       <tr class="hover:bg-gray-50">
-        <td class="border border-gray-300 px-3 py-3 text-center">
-          <input type="checkbox" class="revenue-check w-4 h-4 cursor-pointer" value="${report.reportId || report.report_id}">
+        <td class="border border-gray-300 px-3 py-3 text-center" onclick="this.querySelector('input').click()">
+          <label class="flex items-center justify-center w-full h-full cursor-pointer p-2">
+            <input type="checkbox" class="revenue-check w-5 h-5 cursor-pointer" value="${report.reportId || report.report_id}" onclick="event.stopPropagation()">
+          </label>
         </td>
         <td class="border border-gray-300 px-4 py-3">${installDate}</td>
         <td class="border border-gray-300 px-4 py-3 font-semibold whitespace-nowrap">${customerName}</td>

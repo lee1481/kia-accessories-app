@@ -3891,7 +3891,9 @@ app.get('/ocr', (c) => {
                             <thead>
                                 <tr class="bg-gray-100">
                                     <th class="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-700">
-                                        <input type="checkbox" id="selectAllRevenue" onclick="toggleSelectAllRevenue(this)" class="w-4 h-4 cursor-pointer">
+                                        <label class="flex items-center justify-center w-full h-full cursor-pointer p-2">
+                                            <input type="checkbox" id="selectAllRevenue" onclick="toggleSelectAllRevenue(this)" class="w-5 h-5 cursor-pointer">
+                                        </label>
                                     </th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">시공 날짜</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">고객명</th>
