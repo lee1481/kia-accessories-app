@@ -575,6 +575,14 @@
             userInfo.innerHTML = `<i class="fas fa-user-circle mr-2" style="color:#a5b4fc;"></i><span style="color:#ffffff;">${user.branchName} - ${user.username}</span>`
             header.appendChild(userInfo)
 
+            const manualBtn = document.createElement('a')
+            manualBtn.href = '/static/manual.html'
+            manualBtn.target = '_blank'
+            manualBtn.innerHTML = '<i class="fas fa-book-open mr-2"></i>사용설명서'
+            manualBtn.className = 'text-white px-6 py-2 rounded-lg font-bold transition'
+            manualBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);margin-top:8px;text-decoration:none;display:inline-block;'
+            header.appendChild(manualBtn)
+
             const logoutBtn = document.createElement('button')
             logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt mr-2"></i>로그아웃'
             logoutBtn.className = 'text-white px-6 py-2 rounded-lg font-bold transition'
