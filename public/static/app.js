@@ -3916,7 +3916,13 @@ async function loadSettlementList() {
               <i class="fas fa-folder-open mr-2"></i>${label}
               <span class="ml-2 text-base font-bold text-purple-700">(${reports.length}건 / ₩${groupRevenue.toLocaleString()})</span>
             </span>
-            <i class="fas fa-chevron-down text-purple-400" id="icon-${label}"></i>
+            <div class="flex items-center gap-3">
+              <button onclick="event.stopPropagation(); exportSettlementExcel('${label}')"
+                class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold whitespace-nowrap">
+                <i class="fas fa-file-excel mr-1"></i>엑셀 다운로드
+              </button>
+              <i class="fas fa-chevron-down text-purple-400" id="icon-${label}"></i>
+            </div>
           </button>
           <div id="group-${label}" class="hidden">
             <!-- 데스크톱 테이블 -->
@@ -4087,3 +4093,43 @@ closeSettleModal = function() {
     modal.dataset.bulk = 'false';
   }
 };
+
+// ========================================
+// 7단계: 정산내역 엑셀 다운로드
+// ========================================
+function exportSettlementExcel(label) {
+  try {
+    if (typeof XLSX === 'undefined') {
+      alert('⚠️ 엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    // settlementData 캐시에서 해당 라벨 데이터 추출
+    const container = document.getElementById('settlementList');
+    if (!container) { alert('⚠️ 정산내역을 먼저 로드해주세요.'); return; }
+
+    // DOM 테이블에서 데이터 추출
+    const groupEl = document.getElementById(`group-${label}`);
+    if (!groupEl) { alert('⚠️ 해당 정산 그룹을 찾을 수 없습니다.'); return; }
+
+    const table = groupEl.querySelector('table');
+    if (!table) { alert('⚠️ 데이터가 없습니다.'); return; }
+
+    // 펼쳐져 있지 않으면 잠깐 펼쳐서 데이터 추출
+    const wasHidden = groupEl.classList.contains('hidden');
+    if (wasHidden) groupEl.classList.remove('hidden');
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, label.substring(0, 31));
+
+    if (wasHidden) groupEl.classList.add('hidden');
+
+    const fileName = `${label}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    alert(`✅ 엑셀 파일이 다운로드되었습니다!\n\n파일명: ${fileName}`);
+  } catch (err) {
+    console.error('exportSettlementExcel error:', err);
+    alert('❌ 엑셀 다운로드 중 오류가 발생했습니다.');
+  }
+}
