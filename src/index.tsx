@@ -3925,11 +3925,7 @@ app.get('/ocr', (c) => {
                         </div>
                     </div>
                     
-                    <div class="mt-6 flex items-center justify-between flex-wrap gap-3">
-                        <button onclick="prevStep(5)" 
-                                class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-base font-semibold">
-                            <i class="fas fa-arrow-left mr-2"></i>이전
-                        </button>
+                    <div class="mt-6 flex items-center justify-end flex-wrap gap-3">
                         <button onclick="openBulkSettleModal()"
                                 class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-base font-semibold">
                             <i class="fas fa-check-double mr-2"></i>선택항목 일괄 정산완료
