@@ -2368,7 +2368,6 @@ app.get('/api/reports/list', async (c) => {
           AND NOT EXISTS (
             SELECT 1 FROM reports r2
             WHERE r2.assignment_id = a.assignment_id
-              AND r2.branch_id = a.branch_id
           )
         ORDER BY created_at DESC
         LIMIT 100
@@ -2405,7 +2404,6 @@ app.get('/api/reports/list', async (c) => {
           AND NOT EXISTS (
             SELECT 1 FROM reports r2
             WHERE r2.assignment_id = a.assignment_id
-              AND r2.branch_id = a.branch_id
           )
         ORDER BY created_at DESC
         LIMIT 100
