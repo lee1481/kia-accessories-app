@@ -454,13 +454,14 @@ async function verifyToken(token: string) {
 // ========================================
 
 // ── 솔라피 SMS 발송 함수 ──────────────────────────────────────────────────
-async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
+async function sendSMS(env: any, toPhone: string, text: string): Promise<string> {
   try {
     const apiKey = env.SOLAPI_API_KEY
     const apiSecret = env.SOLAPI_API_SECRET
     if (!apiKey || !apiSecret) {
-      console.warn('[SMS] SOLAPI_API_KEY 또는 SOLAPI_API_SECRET 없음 - SMS 발송 건너뜀')
-      return
+      const msg = `[SMS] KEY 없음 - apiKey:${!!apiKey}, apiSecret:${!!apiSecret}`
+      console.warn(msg)
+      return msg
     }
 
     // 솔라피 HMAC-SHA256 서명: date + salt 를 apiSecret 으로 서명
@@ -468,7 +469,6 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
     const salt = Math.random().toString(36).slice(2, 12)
     const sigData = date + salt
     const encoder = new TextEncoder()
-    // ★ 서명 키는 apiSecret (API Key 아님)
     const keyData = encoder.encode(apiSecret)
     const msgData = encoder.encode(sigData)
     const cryptoKey = await crypto.subtle.importKey(
@@ -483,7 +483,6 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Authorization: apiKey 는 헤더에, 서명은 apiSecret 으로 생성
         'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
       },
       body: JSON.stringify({
@@ -496,12 +495,18 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
     })
     const data: any = await res.json()
     if (!res.ok) {
-      console.error('[SMS] 발송 실패:', JSON.stringify(data))
+      const msg = `발송실패: ${JSON.stringify(data)}`
+      console.error('[SMS]', msg)
+      return msg
     } else {
-      console.log('[SMS] 발송 성공 to:', cleanPhone)
+      const msg = `발송성공: ${cleanPhone} / ${data?.statusCode}`
+      console.log('[SMS]', msg)
+      return msg
     }
   } catch (err) {
+    const msg = `예외: ${String(err)}`
     console.error('[SMS] 발송 중 예외:', err)
+    return msg
   }
 }
 
@@ -2209,6 +2214,7 @@ app.post('/api/assignments', async (c) => {
     ).run()
 
     // ── SMS 발송: 해당 지사 담당자에게 알림 ──────────────────────────────
+    let smsResult = '번호 없음'
     try {
       const branchInfo = await env.DB.prepare(
         'SELECT name, phone FROM branches WHERE id = ?'
@@ -2216,13 +2222,14 @@ app.post('/api/assignments', async (c) => {
 
       if (branchInfo?.phone) {
         const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
-        await sendSMS(env, branchInfo.phone, smsText)
+        smsResult = await sendSMS(env, branchInfo.phone, smsText)
       }
     } catch (smsErr) {
       console.error('[SMS] 접수 알림 발송 실패 (접수는 정상 등록됨):', smsErr)
+      smsResult = 'SMS 오류: ' + String(smsErr)
     }
 
-    return c.json({ success: true, message: '접수가 등록되었습니다!', assignmentId })
+    return c.json({ success: true, message: '접수가 등록되었습니다!', assignmentId, smsResult })
 
   } catch (error: any) {
     console.error('Assignment create error:', error)

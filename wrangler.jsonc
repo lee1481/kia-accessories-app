@@ -28,5 +28,8 @@
       "binding": "R2", // UPDATED
       "bucket_name": "pv5-images" // UPDATED
     } // UPDATED
-  ] // UPDATED
+  ], // UPDATED
+  "vars": {
+    "SOLAPI_FROM": "01020091481"
+  }
 }
