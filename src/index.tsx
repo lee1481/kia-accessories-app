@@ -454,7 +454,7 @@ async function verifyToken(token: string) {
 // ========================================
 
 // ── 솔라피 SMS 발송 함수 ──────────────────────────────────────────────────
-// 솔라피 다건 발송 (phoneList 배열로 한 번에 전송)
+// 솔라피 다건 발송 (HMAC 서명 1회 생성 후 각 번호에 순차 발송)
 async function sendSMS(env: any, phoneList: string[], text: string): Promise<string> {
   try {
     const apiKey = env.SOLAPI_API_KEY
@@ -466,45 +466,45 @@ async function sendSMS(env: any, phoneList: string[], text: string): Promise<str
     }
     if (phoneList.length === 0) return '발송 대상 없음'
 
-    // 솔라피 HMAC-SHA256 서명: date + salt 를 apiSecret 으로 서명 (한 번만 생성)
-    const date = new Date().toISOString()
-    const salt = Math.random().toString(36).slice(2, 12)
-    const sigData = date + salt
-    const encoder = new TextEncoder()
-    const keyData = encoder.encode(apiSecret)
-    const msgData = encoder.encode(sigData)
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-    )
-    const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData)
-    const signature = Array.from(new Uint8Array(sigBuffer))
-      .map(b => b.toString(16).padStart(2, '0')).join('')
+    const results: string[] = []
+    for (const p of phoneList) {
+      // 각 발송마다 새로운 date+salt로 서명 (솔라피 재사용 방지 정책 대응)
+      const date = new Date().toISOString()
+      const salt = Math.random().toString(36).slice(2, 12)
+      const sigData = date + salt
+      const encoder = new TextEncoder()
+      const keyData = encoder.encode(apiSecret)
+      const msgData = encoder.encode(sigData)
+      const cryptoKey = await crypto.subtle.importKey(
+        'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      )
+      const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData)
+      const signature = Array.from(new Uint8Array(sigBuffer))
+        .map(b => b.toString(16).padStart(2, '0')).join('')
 
-    // 다건 메시지 배열 구성
-    const messages = phoneList.map(p => ({
-      to: p.replace(/[^0-9]/g, ''),
-      from: '01020091481',
-      text
-    }))
-
-    const res = await fetch('https://api.solapi.com/messages/v4/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
-      },
-      body: JSON.stringify({ messages })
-    })
-    const data: any = await res.json()
-    if (!res.ok) {
-      const msg = `발송실패: ${JSON.stringify(data)}`
-      console.error('[SMS]', msg)
-      return msg
-    } else {
-      const msg = `다건발송성공: ${phoneList.length}명 / groupId:${data?.groupId}`
-      console.log('[SMS]', msg)
-      return msg
+      const cleanPhone = p.replace(/[^0-9]/g, '')
+      const res = await fetch('https://api.solapi.com/messages/v4/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
+        },
+        body: JSON.stringify({
+          message: { to: cleanPhone, from: '01020091481', text }
+        })
+      })
+      const data: any = await res.json()
+      if (!res.ok) {
+        const msg = `${cleanPhone} 실패: ${data?.errorCode}`
+        console.error('[SMS]', msg)
+        results.push(msg)
+      } else {
+        const msg = `${cleanPhone} 성공`
+        console.log('[SMS]', msg)
+        results.push(msg)
+      }
     }
+    return results.join(' | ')
   } catch (err) {
     const msg = `예외: ${String(err)}`
     console.error('[SMS] 발송 중 예외:', err)
