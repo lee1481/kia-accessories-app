@@ -816,14 +816,18 @@ app.get('/api/branches/list', async (c) => {
     const user = auth.user as any
     let result
     if (user.role === 'head') {
-      // 본사 → 전체 지사 목록
+      // 본사 → 전체 지사 목록 (username 포함)
       result = await env.DB.prepare(
-        'SELECT * FROM branches ORDER BY id ASC'
+        `SELECT b.*, u.username FROM branches b
+         LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
+         ORDER BY b.id ASC`
       ).all()
     } else {
       // 지사 → 자신의 지사만
       result = await env.DB.prepare(
-        'SELECT * FROM branches WHERE id = ? ORDER BY id ASC'
+        `SELECT b.*, u.username FROM branches b
+         LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
+         WHERE b.id = ? ORDER BY b.id ASC`
       ).bind(user.branchId).all()
     }
     return c.json({ success: true, branches: result.results || [] })
