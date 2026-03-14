@@ -457,17 +457,19 @@ async function verifyToken(token: string) {
 async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
   try {
     const apiKey = env.SOLAPI_API_KEY
-    if (!apiKey) {
-      console.warn('[SMS] SOLAPI_API_KEY 없음 - SMS 발송 건너뜀')
+    const apiSecret = env.SOLAPI_API_SECRET
+    if (!apiKey || !apiSecret) {
+      console.warn('[SMS] SOLAPI_API_KEY 또는 SOLAPI_API_SECRET 없음 - SMS 발송 건너뜀')
       return
     }
 
-    // HMAC-SHA256 서명 생성
+    // 솔라피 HMAC-SHA256 서명: date + salt 를 apiSecret 으로 서명
     const date = new Date().toISOString()
     const salt = Math.random().toString(36).slice(2, 12)
     const sigData = date + salt
     const encoder = new TextEncoder()
-    const keyData = encoder.encode(apiKey)
+    // ★ 서명 키는 apiSecret (API Key 아님)
+    const keyData = encoder.encode(apiSecret)
     const msgData = encoder.encode(sigData)
     const cryptoKey = await crypto.subtle.importKey(
       'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
@@ -481,6 +483,7 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Authorization: apiKey 는 헤더에, 서명은 apiSecret 으로 생성
         'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
       },
       body: JSON.stringify({
