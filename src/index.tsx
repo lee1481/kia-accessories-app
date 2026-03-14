@@ -453,6 +453,54 @@ async function verifyToken(token: string) {
 // 형식: pbkdf2$<salt_hex>$<hash_hex>
 // ========================================
 
+// ── 솔라피 SMS 발송 함수 ──────────────────────────────────────────────────
+async function sendSMS(env: any, toPhone: string, text: string): Promise<void> {
+  try {
+    const apiKey = env.SOLAPI_API_KEY
+    if (!apiKey) {
+      console.warn('[SMS] SOLAPI_API_KEY 없음 - SMS 발송 건너뜀')
+      return
+    }
+
+    // HMAC-SHA256 서명 생성
+    const date = new Date().toISOString()
+    const salt = Math.random().toString(36).slice(2, 12)
+    const sigData = date + salt
+    const encoder = new TextEncoder()
+    const keyData = encoder.encode(apiKey)
+    const msgData = encoder.encode(sigData)
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    )
+    const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData)
+    const signature = Array.from(new Uint8Array(sigBuffer))
+      .map(b => b.toString(16).padStart(2, '0')).join('')
+
+    const cleanPhone = toPhone.replace(/[^0-9]/g, '')
+    const res = await fetch('https://api.solapi.com/messages/v4/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
+      },
+      body: JSON.stringify({
+        message: {
+          to: cleanPhone,
+          text
+        }
+      })
+    })
+    const data: any = await res.json()
+    if (!res.ok) {
+      console.error('[SMS] 발송 실패:', JSON.stringify(data))
+    } else {
+      console.log('[SMS] 발송 성공 to:', cleanPhone)
+    }
+  } catch (err) {
+    console.error('[SMS] 발송 중 예외:', err)
+  }
+}
+
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder()
   // 랜덤 salt 16바이트 생성
@@ -818,7 +866,7 @@ app.get('/api/branches/list', async (c) => {
     if (user.role === 'head') {
       // 본사 → 전체 지사 목록 (username 포함, 중복 제거)
       result = await env.DB.prepare(
-        `SELECT b.id, b.name, b.code, b.created_at,
+        `SELECT b.id, b.name, b.code, b.phone, b.created_at,
                 MIN(u.username) as username
          FROM branches b
          LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
@@ -828,7 +876,7 @@ app.get('/api/branches/list', async (c) => {
     } else {
       // 지사 → 자신의 지사만
       result = await env.DB.prepare(
-        `SELECT b.id, b.name, b.code, b.created_at,
+        `SELECT b.id, b.name, b.code, b.phone, b.created_at,
                 MIN(u.username) as username
          FROM branches b
          LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
@@ -849,7 +897,7 @@ app.post('/api/branches', async (c) => {
   const auth = await requireHeadAuth(c)
   if (!auth.success) return auth.response
   try {
-    const { name } = await c.req.json()
+    const { name, phone } = await c.req.json()
     
     if (!name) {
       return c.json({ success: false, error: '지사명을 입력해주세요.' }, 400)
@@ -869,8 +917,8 @@ app.post('/api/branches', async (c) => {
       // 충돌 시 타임스탬프 추가
       const uniqueCode = code + '-' + Date.now()
       const result = await env.DB.prepare(
-        'INSERT INTO branches (name, code) VALUES (?, ?)'
-      ).bind(name, uniqueCode).run()
+        'INSERT INTO branches (name, code, phone) VALUES (?, ?, ?)'
+      ).bind(name, uniqueCode, phone || null).run()
 
       const branchId = result.meta.last_row_id
       const defaultPassword = await hashPassword('123456')
@@ -888,8 +936,8 @@ app.post('/api/branches', async (c) => {
     
     // 지사 추가
     const result = await env.DB.prepare(
-      'INSERT INTO branches (name, code) VALUES (?, ?)'
-    ).bind(name, code).run()
+      'INSERT INTO branches (name, code, phone) VALUES (?, ?, ?)'
+    ).bind(name, code, phone || null).run()
 
     const branchId = result.meta.last_row_id
 
@@ -917,7 +965,7 @@ app.put('/api/branches/:id', async (c) => {
   if (!auth.success) return auth.response
   try {
     const id = c.req.param('id')
-    const { name } = await c.req.json()
+    const { name, phone } = await c.req.json()
     
     if (!name) {
       return c.json({ success: false, error: '지사명을 입력해주세요.' }, 400)
@@ -948,10 +996,10 @@ app.put('/api/branches/:id', async (c) => {
       finalCode = code + '-' + Date.now()
     }
     
-    // 지사 수정
+    // 지사 수정 (phone 포함)
     await env.DB.prepare(
-      'UPDATE branches SET name = ?, code = ? WHERE id = ?'
-    ).bind(name, finalCode, id).run()
+      'UPDATE branches SET name = ?, code = ?, phone = ? WHERE id = ?'
+    ).bind(name, finalCode, phone || null, id).run()
     
     return c.json({
       success: true,
@@ -2155,6 +2203,20 @@ app.post('/api/assignments', async (c) => {
       notes        || '',
       finalOrderDate
     ).run()
+
+    // ── SMS 발송: 해당 지사 담당자에게 알림 ──────────────────────────────
+    try {
+      const branchInfo = await env.DB.prepare(
+        'SELECT name, phone FROM branches WHERE id = ?'
+      ).bind(parsedBranchId).first() as any
+
+      if (branchInfo?.phone) {
+        const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
+        await sendSMS(env, branchInfo.phone, smsText)
+      }
+    } catch (smsErr) {
+      console.error('[SMS] 접수 알림 발송 실패 (접수는 정상 등록됨):', smsErr)
+    }
 
     return c.json({ success: true, message: '접수가 등록되었습니다!', assignmentId })
 
