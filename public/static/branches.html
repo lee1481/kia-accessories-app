@@ -545,7 +545,10 @@
             const newPassword = document.getElementById('newPassword').value
             const confirmPassword = document.getElementById('confirmPassword').value
 
-            if (!newPassword || !confirmPassword) {
+            if (!username) {
+                alert('❌ 이 지사에 연결된 사용자 계정이 없습니다.\n지사를 저장한 후 목록을 새로고침하고 다시 시도해주세요.')
+                return
+            }
                 alert('비밀번호를 입력해주세요.')
                 return
             }

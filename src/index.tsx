@@ -864,11 +864,17 @@ app.post('/api/branches', async (c) => {
       const result = await env.DB.prepare(
         'INSERT INTO branches (name, code) VALUES (?, ?)'
       ).bind(name, uniqueCode).run()
-      
+
+      const branchId = result.meta.last_row_id
+      const defaultPassword = await hashPassword('123456')
+      await env.DB.prepare(
+        'INSERT OR IGNORE INTO users (username, password, role, branch_id) VALUES (?, ?, ?, ?)'
+      ).bind(uniqueCode, defaultPassword, 'branch', branchId).run()
+
       return c.json({
         success: true,
         message: '지사가 추가되었습니다.',
-        id: result.meta.last_row_id,
+        id: branchId,
         code: uniqueCode
       })
     }
@@ -877,11 +883,19 @@ app.post('/api/branches', async (c) => {
     const result = await env.DB.prepare(
       'INSERT INTO branches (name, code) VALUES (?, ?)'
     ).bind(name, code).run()
-    
+
+    const branchId = result.meta.last_row_id
+
+    // users 테이블에 기본 계정 자동 생성 (username=code, 초기 비밀번호=123456)
+    const defaultPassword = await hashPassword('123456')
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO users (username, password, role, branch_id) VALUES (?, ?, ?, ?)'
+    ).bind(code, defaultPassword, 'branch', branchId).run()
+
     return c.json({
       success: true,
       message: '지사가 추가되었습니다.',
-      id: result.meta.last_row_id,
+      id: branchId,
       code: code
     })
   } catch (error: any) {
