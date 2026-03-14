@@ -816,18 +816,25 @@ app.get('/api/branches/list', async (c) => {
     const user = auth.user as any
     let result
     if (user.role === 'head') {
-      // 본사 → 전체 지사 목록 (username 포함)
+      // 본사 → 전체 지사 목록 (username 포함, 중복 제거)
       result = await env.DB.prepare(
-        `SELECT b.*, u.username FROM branches b
+        `SELECT b.id, b.name, b.code, b.created_at,
+                MIN(u.username) as username
+         FROM branches b
          LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
+         GROUP BY b.id
          ORDER BY b.id ASC`
       ).all()
     } else {
       // 지사 → 자신의 지사만
       result = await env.DB.prepare(
-        `SELECT b.*, u.username FROM branches b
+        `SELECT b.id, b.name, b.code, b.created_at,
+                MIN(u.username) as username
+         FROM branches b
          LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch'
-         WHERE b.id = ? ORDER BY b.id ASC`
+         WHERE b.id = ?
+         GROUP BY b.id
+         ORDER BY b.id ASC`
       ).bind(user.branchId).all()
     }
     return c.json({ success: true, branches: result.results || [] })
@@ -974,17 +981,10 @@ app.delete('/api/branches/:id', async (c) => {
       return c.json({ success: false, error: '존재하지 않는 지사입니다.' }, 404)
     }
     
-    // 해당 지사 소속 사용자 확인
-    const users = await env.DB.prepare(
-      'SELECT COUNT(*) as count FROM users WHERE branch_id = ?'
-    ).bind(id).first()
-    
-    if (users && (users.count as number) > 0) {
-      return c.json({ 
-        success: false, 
-        error: '해당 지사에 소속된 사용자가 있어 삭제할 수 없습니다.' 
-      }, 400)
-    }
+    // 해당 지사 소속 사용자 먼저 삭제 (CASCADE)
+    await env.DB.prepare(
+      'DELETE FROM users WHERE branch_id = ?'
+    ).bind(id).run()
     
     // 지사 삭제
     await env.DB.prepare(
