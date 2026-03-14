@@ -454,7 +454,8 @@ async function verifyToken(token: string) {
 // ========================================
 
 // ── 솔라피 SMS 발송 함수 ──────────────────────────────────────────────────
-async function sendSMS(env: any, toPhone: string, text: string): Promise<string> {
+// 솔라피 다건 발송 (phoneList 배열로 한 번에 전송)
+async function sendSMS(env: any, phoneList: string[], text: string): Promise<string> {
   try {
     const apiKey = env.SOLAPI_API_KEY
     const apiSecret = env.SOLAPI_API_SECRET
@@ -463,8 +464,9 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<string>
       console.warn(msg)
       return msg
     }
+    if (phoneList.length === 0) return '발송 대상 없음'
 
-    // 솔라피 HMAC-SHA256 서명: date + salt 를 apiSecret 으로 서명
+    // 솔라피 HMAC-SHA256 서명: date + salt 를 apiSecret 으로 서명 (한 번만 생성)
     const date = new Date().toISOString()
     const salt = Math.random().toString(36).slice(2, 12)
     const sigData = date + salt
@@ -478,20 +480,20 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<string>
     const signature = Array.from(new Uint8Array(sigBuffer))
       .map(b => b.toString(16).padStart(2, '0')).join('')
 
-    const cleanPhone = toPhone.replace(/[^0-9]/g, '')
-    const res = await fetch('https://api.solapi.com/messages/v4/send', {
+    // 다건 메시지 배열 구성
+    const messages = phoneList.map(p => ({
+      to: p.replace(/[^0-9]/g, ''),
+      from: '01020091481',
+      text
+    }))
+
+    const res = await fetch('https://api.solapi.com/messages/v4/send-many', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`
       },
-      body: JSON.stringify({
-        message: {
-          to: cleanPhone,
-          from: '01020091481',
-          text
-        }
-      })
+      body: JSON.stringify({ messages })
     })
     const data: any = await res.json()
     if (!res.ok) {
@@ -499,7 +501,7 @@ async function sendSMS(env: any, toPhone: string, text: string): Promise<string>
       console.error('[SMS]', msg)
       return msg
     } else {
-      const msg = `발송성공: ${cleanPhone} / ${data?.statusCode}`
+      const msg = `다건발송성공: ${phoneList.length}명 / groupId:${data?.groupId}`
       console.log('[SMS]', msg)
       return msg
     }
@@ -2294,12 +2296,8 @@ app.post('/api/assignments', async (c) => {
 
       if (phoneSet.size > 0) {
         const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo?.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
-        const results: string[] = []
-        for (const p of phoneSet) {
-          const r = await sendSMS(env, p, smsText)
-          results.push(r)
-        }
-        smsResult = results.join(' | ')
+        // 다건 배열로 한 번에 발송 (솔라피 send-many API)
+        smsResult = await sendSMS(env, Array.from(phoneSet), smsText)
       }
     } catch (smsErr) {
       console.error('[SMS] 접수 알림 발송 실패 (접수는 정상 등록됨):', smsErr)
