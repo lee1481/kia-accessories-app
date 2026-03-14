@@ -1059,6 +1059,65 @@ app.delete('/api/branches/:id', async (c) => {
 })
 
 // ========================================
+// 지사 담당자 연락처 API (본사 전용)
+// ========================================
+
+// 담당자 목록 조회
+app.get('/api/branches/:id/contacts', async (c) => {
+  const auth = await requireHeadAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const id = c.req.param('id')
+    const { env } = c
+    const result = await env.DB.prepare(
+      'SELECT id, branch_id, name, phone, memo FROM branch_contacts WHERE branch_id = ? ORDER BY id ASC'
+    ).bind(id).all()
+    return c.json({ success: true, contacts: result.results || [] })
+  } catch (error: any) {
+    console.error('Contacts list error:', error)
+    return c.json({ success: false, error: '담당자 목록 조회 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// 담당자 추가
+app.post('/api/branches/:id/contacts', async (c) => {
+  const auth = await requireHeadAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const branchId = c.req.param('id')
+    const { name, phone, memo } = await c.req.json()
+    if (!name || !phone) {
+      return c.json({ success: false, error: '담당자명과 전화번호는 필수입니다.' }, 400)
+    }
+    const { env } = c
+    const result = await env.DB.prepare(
+      'INSERT INTO branch_contacts (branch_id, name, phone, memo) VALUES (?, ?, ?, ?)'
+    ).bind(branchId, name, phone, memo || '').run()
+    return c.json({ success: true, message: '담당자가 추가되었습니다.', id: result.meta.last_row_id })
+  } catch (error: any) {
+    console.error('Contact add error:', error)
+    return c.json({ success: false, error: '담당자 추가 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// 담당자 삭제
+app.delete('/api/branches/:id/contacts/:contactId', async (c) => {
+  const auth = await requireHeadAuth(c)
+  if (!auth.success) return auth.response
+  try {
+    const contactId = c.req.param('contactId')
+    const { env } = c
+    await env.DB.prepare(
+      'DELETE FROM branch_contacts WHERE id = ?'
+    ).bind(contactId).run()
+    return c.json({ success: true, message: '담당자가 삭제되었습니다.' })
+  } catch (error: any) {
+    console.error('Contact delete error:', error)
+    return c.json({ success: false, error: '담당자 삭제 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// ========================================
 // 사용자 관리 API (본사 전용)
 // ========================================
 
@@ -2213,16 +2272,34 @@ app.post('/api/assignments', async (c) => {
       finalOrderDate
     ).run()
 
-    // ── SMS 발송: 해당 지사 담당자에게 알림 ──────────────────────────────
+    // ── SMS 발송: 해당 지사 담당자 전체에게 알림 ─────────────────────────
     let smsResult = '번호 없음'
     try {
       const branchInfo = await env.DB.prepare(
         'SELECT name, phone FROM branches WHERE id = ?'
       ).bind(parsedBranchId).first() as any
 
-      if (branchInfo?.phone) {
-        const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
-        smsResult = await sendSMS(env, branchInfo.phone, smsText)
+      // branch_contacts 다중 담당자 조회
+      const contactsResult = await env.DB.prepare(
+        'SELECT name, phone FROM branch_contacts WHERE branch_id = ?'
+      ).bind(parsedBranchId).all()
+      const contacts = (contactsResult.results || []) as any[]
+
+      // 기존 phone + 다중 contacts 합치기 (중복 제거)
+      const phoneSet = new Set<string>()
+      if (branchInfo?.phone) phoneSet.add(branchInfo.phone.replace(/[^0-9]/g, ''))
+      contacts.forEach((ct: any) => {
+        if (ct.phone) phoneSet.add(ct.phone.replace(/[^0-9]/g, ''))
+      })
+
+      if (phoneSet.size > 0) {
+        const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo?.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
+        const results: string[] = []
+        for (const p of phoneSet) {
+          const r = await sendSMS(env, p, smsText)
+          results.push(r)
+        }
+        smsResult = results.join(' | ')
       }
     } catch (smsErr) {
       console.error('[SMS] 접수 알림 발송 실패 (접수는 정상 등록됨):', smsErr)
