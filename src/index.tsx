@@ -487,7 +487,7 @@ async function sendSMS(env: any, phoneList: string[], text: string): Promise<str
       text
     }))
 
-    const res = await fetch('https://api.solapi.com/messages/v4/send-many', {
+    const res = await fetch('https://api.solapi.com/messages/v4/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
