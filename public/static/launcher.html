@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>케이밴 (K-VAN) - PV5 시공관리 시스템</title>
+    <title>기아 순정 액세서리 설치 관리 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -53,50 +53,22 @@
             margin-bottom: 20px;
         }
         
-        /* PV5 Showcase Section */
-        .showcase-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-            margin-bottom: 80px;
-        }
-        
-        .showcase-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        /* KIA Showcase Section */
+        .showcase-banner {
+            width: 100%;
             border-radius: 32px;
             overflow: hidden;
-            box-shadow: 
-                0 20px 60px rgba(0, 0, 0, 0.4),
+            margin-bottom: 60px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
-        .showcase-card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 
-                0 30px 80px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        }
-        
-        .showcase-card img {
+
+        .showcase-banner img {
             width: 100%;
             height: auto;
             display: block;
-            flex-shrink: 0;
-        }
-        
-        .showcase-info {
-            padding: 48px 40px;
-            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.6) 100%);
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
         }
         
         /* Branch Grid */
@@ -408,61 +380,16 @@
         <!-- Header -->
         <div class="text-center mb-16">
             <div class="header-logo inline-block">
-                <span class="text-4xl font-black tracking-tight" style="background: linear-gradient(90deg, #6366f1, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">케이밴 K-VAN</span>
+                <span class="text-4xl font-black tracking-tight" style="background: linear-gradient(90deg, #6366f1, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">기아 순정 액세서리</span>
             </div>
             <p class="text-xl text-white/60 mt-6 font-semibold">
-                PV5 시공관리 시스템
+                기아 순정 액세서리 설치 관리 시스템
             </p>
         </div>
 
-        <!-- PV5 Showcase Grid -->
-        <div class="showcase-grid">
-            <!-- Main PV5 Showcase -->
-            <div class="showcase-card">
-                <img src="/static/pv5-showcase.jpg" alt="PV5 Cargo Showcase">
-                <div class="showcase-info text-center">
-                    <h2 class="text-3xl font-black text-white mb-3 leading-tight">
-                        비즈니스 모빌리티의<br>새로운 표준
-                    </h2>
-                    <p class="text-xl text-white/80 font-bold mb-2">
-                        PV5 카고 솔루션
-                    </p>
-                    <p class="text-base text-white/60 leading-relaxed">
-                        Pretendard Regular<br>
-                        더 이상 단순한 운송 수단이 아닙니다.<br>
-                        당신의 비즈니스를 위한 완벽한 파트너입니다.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Interior Options -->
-            <div class="showcase-card">
-                <img src="/static/pv5-options.jpg" alt="PV5 Interior Options">
-                <div class="showcase-info text-center">
-                    <h2 class="text-3xl font-black text-white mb-6 leading-tight">
-                        당신의 비즈니스<br>아이덴티티를 담은 디자인
-                    </h2>
-                    <div class="grid grid-cols-2 gap-6 text-left">
-                        <div>
-                            <p class="text-lg font-black text-blue-400 mb-2">Option A:<br>Kia Collection</p>
-                            <p class="text-sm text-white/70 leading-relaxed">
-                                모던하고 실용한 그레이 톤.<br>
-                                기아 PV5의 순정 인테리어와<br>
-                                완벽한 조화.
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-lg font-black text-red-400 mb-2">Option B:<br>Milwaukee Edition</p>
-                            <p class="text-sm text-white/70 leading-relaxed">
-                                강렬한 레드 컬러와<br>
-                                다이내믹한 감성.<br>
-                                밀워키 전동공구 시스템과의<br>
-                                완벽한 컬러 매칭.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- KIA Accessories Showcase Banner -->
+        <div class="showcase-banner">
+            <img src="/static/kia-accessories.png" alt="KIA Genuine Accessories Installation">
         </div>
 
         <!-- Branch Grid -->
@@ -474,10 +401,10 @@
         <div class="text-center text-white/50 pb-12">
             <div class="flex items-center justify-center gap-4 mb-4">
                 <img src="/static/kvan-logo.png" alt="K-VAN" class="h-10 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
-                <span class="text-sm font-semibold">© 2026 K-VAN. All rights reserved.</span>
+                <span class="text-sm font-semibold">© 2026 기아 순정 액세서리 설치 관리 시스템. All rights reserved.</span>
             </div>
             <p class="text-xs font-semibold tracking-wider uppercase">
-                비즈니스 모빌리티 혁신 파트너
+                KIA Genuine Accessories Installation
             </p>
         </div>
     </div>

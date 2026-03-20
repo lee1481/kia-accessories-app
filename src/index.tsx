@@ -363,7 +363,7 @@ app.get('/api/packages/:id', (c) => {
 // ========================================
 
 // JWT 시크릿 키 — 환경변수 우선, 없으면 폴백 (개발용)
-const JWT_SECRET_FALLBACK = 'kvan-pv5-jwt-secret-2026-secure-key-fallback'
+const JWT_SECRET_FALLBACK = 'kia-accessories-jwt-secret-2026-secure-key'
 function getJwtSecret(env?: Bindings): string {
   return env?.JWT_SECRET || JWT_SECRET_FALLBACK
 }
@@ -1845,7 +1845,7 @@ app.post('/api/send-email', async (c) => {
       
       return c.json({ 
         success: true, 
-        message: '✅ 시공 확인서가 저장되었습니다!\n\n⚠️ 참고: 이메일 발송 기능은 현재 비활성화되어 있습니다.\nResend API 키를 설정하면 자동으로 이메일이 발송됩니다.\n\n설정 방법:\n1. https://resend.com 에서 무료 계정 생성\n2. API 키 발급\n3. Cloudflare Dashboard → Workers & Pages → pv5-webapp → Settings → Variables → RESEND_API_KEY 추가',
+        message: '✅ 설치 확인서가 저장되었습니다!\n\n⚠️ 참고: 이메일 발송 기능은 현재 비활성화되어 있습니다.\nResend API 키를 설정하면 자동으로 이메일이 발송됩니다.\n\n설정 방법:\n1. https://resend.com 에서 무료 계정 생성\n2. API 키 발급\n3. Cloudflare Dashboard → Workers & Pages → pv5-webapp → Settings → Variables → RESEND_API_KEY 추가',
         emailDisabled: true
       }, 200)
     }
@@ -1878,7 +1878,7 @@ app.post('/api/send-email', async (c) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🚗 PV5 시공(예약) 확인서</h1>
+            <h1>🚗 기아 순정 액세서리 설치 확인서</h1>
           </div>
           <div class="content">
             <div class="section">
@@ -1934,7 +1934,7 @@ app.post('/api/send-email', async (c) => {
             </div>
           </div>
           <div class="footer">
-            <p>© 2026 사인마스터 PV5 시공관리 시스템</p>
+            <p>© 2026 기아 순정 액세서리 설치 관리 시스템</p>
             <p>이 메일은 PV5 시공 확인 점검표 시스템에서 자동으로 발송되었습니다.</p>
           </div>
         </div>
@@ -1944,10 +1944,10 @@ app.post('/api/send-email', async (c) => {
     
     // Resend API 호출 - 첨부파일 포함
     const emailPayload: any = {
-      from: 'PV5 시공관리 <onboarding@resend.dev>',
+      from: '기아 액세서리 설치관리 <onboarding@resend.dev>',
       to: [recipientEmail],
       reply_to: recipientEmail,
-      subject: `[PV5 시공(예약) 확인서] ${customerInfo?.receiverName || '고객'}님 시공(예약) 확인서`,
+      subject: `[기아 액세서리 설치 확인서] ${customerInfo?.receiverName || '고객'}님 시공(예약) 확인서`,
       html: htmlContent
     };
     
@@ -2188,7 +2188,7 @@ app.post('/api/reports/save', async (c) => {
     console.log('Report saved to D1:', finalReportId) // UPDATED
     return c.json({ 
       success: true, 
-      message: '시공 확인서가 저장되었습니다!',
+      message: '설치 확인서가 저장되었습니다!',
       reportId: finalReportId
     })
     
@@ -2295,7 +2295,7 @@ app.post('/api/assignments', async (c) => {
       })
 
       if (phoneSet.size > 0) {
-        const smsText = `[K-VAN 접수알림]\n지사: ${branchInfo?.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
+        const smsText = `[KIA 액세서리 접수알림]\n지사: ${branchInfo?.name}\n고객명: ${customerName}\n연락처: ${phone || '미입력'}\n주소: ${address || '미입력'}\n제품: ${productName || '미입력'}\n접수일: ${finalOrderDate}\n확인: https://dev-multi-tenant.pv5-webapp.pages.dev`
         // 다건 배열로 한 번에 발송 (솔라피 send-many API)
         smsResult = await sendSMS(env, Array.from(phoneSet), smsText)
       }
@@ -2667,7 +2667,7 @@ app.get('/api/reports/:id', async (c) => {
     if (results.length === 0) { // UPDATED
       return c.json({  // UPDATED
         success: false,  // UPDATED
-        message: '시공 확인서를 찾을 수 없습니다.'  // UPDATED
+        message: '설치 확인서를 찾을 수 없습니다.'  // UPDATED
       }, 404) // UPDATED
     } // UPDATED
     
@@ -2822,7 +2822,7 @@ app.patch('/api/reports/:id/complete', async (c) => {
           success: false,
           message: 'D1 마이그레이션이 필요합니다.',
           needsMigration: true,
-          migrationGuide: 'Cloudflare Dashboard → D1 databases → pv5-reports-db → Console 탭에서 다음 SQL을 실행하세요: ALTER TABLE reports ADD COLUMN status TEXT DEFAULT \'draft\' CHECK(status IN (\'draft\', \'completed\'));'
+          migrationGuide: 'Cloudflare Dashboard → D1 databases → kia-accessories-db → Console 탭에서 다음 SQL을 실행하세요: ALTER TABLE reports ADD COLUMN status TEXT DEFAULT \'draft\' CHECK(status IN (\'draft\', \'completed\'));'
         }, 400)
       }
       throw dbError // 다른 오류는 외부 catch로
@@ -3270,7 +3270,7 @@ app.delete('/api/reports/:id', async (c) => {
       }
     }
 
-    return c.json({ success: true, message: '시공 확인서가 삭제되었습니다.' })
+    return c.json({ success: true, message: '설치 확인서가 삭제되었습니다.' })
 
   } catch (error) {
     console.error('Report delete error:', error)
@@ -3362,7 +3362,7 @@ app.get('/ocr', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>PV5 시공(예약) 확인서 시스템</title>
+        <title>기아 순정 액세서리 설치 관리 시스템</title>
         <script>
           // 토큰 없으면 즉시 로그인 페이지로 (가장 먼저 실행)
           if (!localStorage.getItem('token')) {
@@ -3516,9 +3516,9 @@ app.get('/ocr', (c) => {
                             <div>
                                 <h1 class="font-bold flex items-center gap-2" style="font-size: 1.1rem; letter-spacing: -0.02em;">
                                     <i class="fas fa-bus hidden sm:inline" style="color: #6366f1;"></i>
-                                    <span style="background: linear-gradient(90deg, #4f46e5, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800;">케이밴 K-VAN</span>
+                                    <span style="background: linear-gradient(90deg, #4f46e5, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800;">기아 순정 액세서리</span>
                                 </h1>
-                                <p style="color: #94a3b8; font-size: 0.72rem; margin-top: 1px; letter-spacing: 0.02em;">PV5 시공관리 시스템</p>
+                                <p style="color: #94a3b8; font-size: 0.72rem; margin-top: 1px; letter-spacing: 0.02em;">기아 순정 액세서리 설치 관리 시스템</p>
                             </div>
                         </div>
                         <!-- 유저 정보 + 로그아웃 + 사용설명서 -->
@@ -4095,7 +4095,7 @@ app.get('/ocr', (c) => {
                 <div class="container mx-auto px-4">
                     <div class="flex items-center justify-center gap-4">
                         <img src="/static/kvan-logo.png" alt="K-VAN" class="h-8 w-auto bg-white px-2 py-1 rounded">
-                        <p>&copy; 2026 K-VAN PV5 시공관리 시스템. All rights reserved.</p>
+                        <p>&copy; 2026 K-VAN 기아 순정 액세서리 설치 관리 시스템. All rights reserved.</p>
                     </div>
                 </div>
             </footer>
