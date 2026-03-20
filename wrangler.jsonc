@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "kia-accessories-app",
   "compatibility_date": "2026-01-31",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
@@ -19,14 +19,17 @@
   "d1_databases": [ // UPDATED
     { // UPDATED
       "binding": "DB", // UPDATED
-      "database_name": "pv5-reports-db", // UPDATED
+      "database_name": "kia-accessories-db", // UPDATED
       "database_id": "c365c48c-8338-44ca-8f6a-990c204fd9e1" // UPDATED
     } // UPDATED
   ], // UPDATED
   "r2_buckets": [ // UPDATED
     { // UPDATED
       "binding": "R2", // UPDATED
-      "bucket_name": "pv5-images" // UPDATED
+      "bucket_name": "kia-accessories-images" // UPDATED
     } // UPDATED
-  ] // UPDATED
+  ], // UPDATED
+  "vars": {
+    "SOLAPI_FROM": "01020091481"
+  }
 }

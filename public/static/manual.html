@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-VAN PV5 시공관리 시스템 사용설명서</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        /* 인쇄/PDF 전용 */
+        @media print {
+            body { background: white; font-size: 12px; }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            .section { box-shadow: none !important; border: 1px solid #e2e8f0 !important; margin-bottom: 16px !important; }
+            header { background: #1e40af !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .step-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .flow-arrow { display: none; }
+            .flow-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+
+        /* 헤더 */
+        header {
+            background: linear-gradient(135deg, #1e40af 0%, #4f46e5 100%);
+            color: white;
+            padding: 32px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            right: -40px; top: -40px;
+            width: 200px; height: 200px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .header-content { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+        .header-logo { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+        .header-logo .logo-box {
+            background: white; border-radius: 12px; padding: 8px 16px;
+            display: flex; align-items: center;
+        }
+        .header-logo .logo-box img { height: 36px; width: auto; }
+        header h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+        header p { opacity: 0.85; font-size: 0.95rem; margin-top: 4px; }
+        .header-meta { margin-top: 16px; display: flex; gap: 20px; flex-wrap: wrap; }
+        .header-meta span {
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px; padding: 4px 14px;
+            font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* PDF 다운로드 버튼 */
+        .pdf-btn-wrap {
+            max-width: 900px; margin: 24px auto 0;
+            display: flex; justify-content: flex-end; padding: 0 16px;
+        }
+        .pdf-btn {
+            background: #dc2626; color: white;
+            border: none; border-radius: 10px;
+            padding: 10px 22px; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+            transition: all 0.2s;
+        }
+        .pdf-btn:hover { background: #b91c1c; transform: translateY(-1px); }
+
+        /* 본문 */
+        .container { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
+
+        /* 목차 */
+        .toc {
+            background: white; border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            padding: 28px 32px; margin: 28px 0;
+        }
+        .toc h2 { font-size: 1.1rem; font-weight: 800; color: #1e40af; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px; }
+        .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .toc-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; border-radius: 8px;
+            text-decoration: none; color: #334155;
+            transition: background 0.15s;
+            font-size: 0.88rem;
+        }
+        .toc-item:hover { background: #eff6ff; color: #1e40af; }
+        .toc-num {
+            background: #1e40af; color: white;
+            border-radius: 50%; width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+        }
+
+        /* 섹션 */
+        .section {
+            background: white; border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            padding: 32px; margin-bottom: 24px;
+        }
+        .section-title {
+            font-size: 1.2rem; font-weight: 800; color: #1e293b;
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 20px; padding-bottom: 14px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .section-title .icon {
+            background: linear-gradient(135deg, #1e40af, #4f46e5);
+            color: white; border-radius: 10px;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; flex-shrink: 0;
+        }
+
+        /* 전체 흐름 */
+        .flow-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px; margin-bottom: 12px;
+        }
+        .flow-item {
+            background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+            border: 2px solid #bfdbfe;
+            border-radius: 12px; padding: 14px 10px;
+            text-align: center;
+        }
+        .flow-item .step-num {
+            background: #1e40af; color: white;
+            border-radius: 20px; padding: 2px 10px;
+            font-size: 0.72rem; font-weight: 700;
+            display: inline-block; margin-bottom: 6px;
+        }
+        .flow-item .step-name { font-weight: 700; font-size: 0.85rem; color: #1e40af; }
+        .flow-item .step-desc { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+        .flow-item.hq {
+            background: linear-gradient(135deg, #fdf4ff, #ede9fe);
+            border-color: #c4b5fd;
+        }
+        .flow-item.hq .step-num { background: #7c3aed; }
+        .flow-item.hq .step-name { color: #7c3aed; }
+
+        /* 단계 배지 */
+        .step-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #1e40af; color: white;
+            border-radius: 20px; padding: 3px 12px;
+            font-size: 0.78rem; font-weight: 700;
+            margin-bottom: 14px;
+        }
+        .step-badge.hq { background: #7c3aed; }
+        .step-badge.warn { background: #dc2626; }
+
+        /* 가이드 카드 */
+        .guide-card {
+            background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 12px; padding: 18px 20px;
+            margin-bottom: 14px;
+        }
+        .guide-card h4 {
+            font-weight: 700; font-size: 0.95rem;
+            color: #1e293b; margin-bottom: 8px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .guide-card h4 i { color: #1e40af; }
+        .guide-card ul { padding-left: 20px; }
+        .guide-card ul li { margin-bottom: 5px; font-size: 0.88rem; color: #475569; }
+        .guide-card .tip {
+            background: #eff6ff; border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 8px 12px;
+            font-size: 0.82rem; color: #1e40af; margin-top: 10px;
+            display: flex; align-items: flex-start; gap: 6px;
+        }
+
+        /* 버튼 설명 */
+        .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .btn-sample {
+            display: inline-flex; align-items: center; gap: 5px;
+            border-radius: 8px; padding: 5px 12px;
+            font-size: 0.8rem; font-weight: 600;
+        }
+        .btn-green { background: #dcfce7; color: #166534; }
+        .btn-blue { background: #dbeafe; color: #1e40af; }
+        .btn-red { background: #fee2e2; color: #991b1b; }
+        .btn-orange { background: #ffedd5; color: #9a3412; }
+        .btn-gray { background: #f1f5f9; color: #475569; }
+        .btn-purple { background: #ede9fe; color: #6d28d9; }
+
+        /* 상태 배지 */
+        .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            border-radius: 20px; padding: 3px 12px;
+            font-size: 0.8rem; font-weight: 600;
+        }
+        .s-orange { background: #ffedd5; color: #9a3412; }
+        .s-blue { background: #dbeafe; color: #1e40af; }
+        .s-green { background: #dcfce7; color: #166534; }
+        .s-gray { background: #f1f5f9; color: #475569; }
+        .s-yellow { background: #fef9c3; color: #854d0e; }
+
+        /* FAQ */
+        .faq-item {
+            border: 1px solid #e2e8f0; border-radius: 12px;
+            margin-bottom: 10px; overflow: hidden;
+        }
+        .faq-q {
+            background: #f8fafc; padding: 14px 18px;
+            font-weight: 700; font-size: 0.9rem; color: #1e293b;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .faq-q .q-badge {
+            background: #dc2626; color: white;
+            border-radius: 50%; width: 20px; height: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 800; flex-shrink: 0;
+        }
+        .faq-a {
+            padding: 14px 18px; font-size: 0.88rem;
+            color: #475569; border-top: 1px solid #e2e8f0;
+            background: white;
+        }
+        .faq-a .a-badge {
+            background: #1e40af; color: white;
+            border-radius: 50%; width: 20px; height: 20px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 800; margin-right: 6px;
+        }
+
+        /* 경고 박스 */
+        .warn-box {
+            background: #fff7ed; border: 1px solid #fed7aa;
+            border-left: 4px solid #f97316; border-radius: 10px;
+            padding: 14px 16px; margin: 14px 0;
+            font-size: 0.88rem; color: #7c2d12;
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .info-box {
+            background: #eff6ff; border: 1px solid #bfdbfe;
+            border-left: 4px solid #3b82f6; border-radius: 10px;
+            padding: 14px 16px; margin: 14px 0;
+            font-size: 0.88rem; color: #1e3a8a;
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+
+        /* 구분선 */
+        hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0; }
+
+        /* 반응형 */
+        @media (max-width: 640px) {
+            header { padding: 24px 20px; }
+            header h1 { font-size: 1.4rem; }
+            .toc-grid { grid-template-columns: 1fr; }
+            .flow-grid { grid-template-columns: repeat(2, 1fr); }
+            .section { padding: 20px 16px; }
+        }
+
+        /* 푸터 */
+        .footer {
+            text-align: center; padding: 24px;
+            color: #94a3b8; font-size: 0.82rem;
+            border-top: 1px solid #e2e8f0; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header>
+    <div class="header-content">
+        <div class="header-logo">
+            <div class="logo-box">
+                <img src="/static/kvan-logo.png" alt="K-VAN">
+            </div>
+            <div>
+                <h1>📋 사용설명서</h1>
+                <p>K-VAN PV5 시공관리 시스템 · 지사 &amp; 본사 통합 가이드</p>
+            </div>
+        </div>
+        <div class="header-meta">
+            <span><i class="fas fa-calendar-alt"></i> 2026년 3월 기준</span>
+            <span><i class="fas fa-code-branch"></i> v3.9</span>
+            <span><i class="fas fa-globe"></i> dev-multi-tenant</span>
+        </div>
+    </div>
+</header>
+
+<!-- PDF 버튼 -->
+<div class="pdf-btn-wrap no-print">
+    <button class="pdf-btn" onclick="downloadPDF()">
+        <i class="fas fa-file-pdf"></i> PDF 다운로드
+    </button>
+</div>
+
+<div class="container">
+
+    <!-- 목차 -->
+    <div class="toc">
+        <h2><i class="fas fa-list-ul"></i> 목차</h2>
+        <div class="toc-grid">
+            <a href="#overview" class="toc-item">
+                <span class="toc-num">1</span> 시스템 전체 흐름
+            </a>
+            <a href="#branch-guide" class="toc-item">
+                <span class="toc-num">2</span> 지사 사용 가이드
+            </a>
+            <a href="#step1" class="toc-item">
+                <span class="toc-num">3</span> 1단계: 거래명세서 업로드
+            </a>
+            <a href="#step2" class="toc-item">
+                <span class="toc-num">4</span> 2단계: 제품 선택
+            </a>
+            <a href="#step3" class="toc-item">
+                <span class="toc-num">5</span> 3단계: 설치 정보 입력
+            </a>
+            <a href="#step4" class="toc-item">
+                <span class="toc-num">6</span> 4단계: 최종 확인 및 저장
+            </a>
+            <a href="#step5" class="toc-item">
+                <span class="toc-num">7</span> 5단계: 저장 문서 관리
+            </a>
+            <a href="#step6" class="toc-item">
+                <span class="toc-num">8</span> 6단계: 매출 관리
+            </a>
+            <a href="#step7" class="toc-item">
+                <span class="toc-num">9</span> 7단계: 정산 내역
+            </a>
+            <a href="#hq-guide" class="toc-item">
+                <span class="toc-num">10</span> 본사 관리 페이지
+            </a>
+            <a href="#faq" class="toc-item">
+                <span class="toc-num">11</span> 자주 묻는 질문 (FAQ)
+            </a>
+            <a href="#contact" class="toc-item">
+                <span class="toc-num">12</span> 문의 및 지원
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. 전체 흐름 -->
+    <div class="section" id="overview">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-sitemap"></i></div>
+            시스템 전체 흐름
+        </div>
+
+        <p style="color:#475569; margin-bottom:18px; font-size:0.9rem;">
+            K-VAN PV5 시공관리 시스템은 본사의 배정부터 지사의 시공 완료, 정산까지 전 과정을 관리합니다.
+        </p>
+
+        <div class="flow-grid">
+            <div class="flow-item hq">
+                <div class="step-num">본사</div>
+                <div class="step-name">고객 배정</div>
+                <div class="step-desc">지사에 고객 배정</div>
+            </div>
+            <div class="flow-item">
+                <div class="step-num">1단계</div>
+                <div class="step-name">거래명세서</div>
+                <div class="step-desc">고객 정보 입력</div>
+            </div>
+            <div class="flow-item">
+                <div class="step-num">2단계</div>
+                <div class="step-name">제품 선택</div>
+                <div class="step-desc">밀워키 / 기아</div>
+            </div>
+            <div class="flow-item">
+                <div class="step-num">3단계</div>
+                <div class="step-name">설치 정보</div>
+                <div class="step-desc">날짜·시간·주소</div>
+            </div>
+        </div>
+        <div class="flow-grid">
+            <div class="flow-item">
+                <div class="step-num">4단계</div>
+                <div class="step-name">최종 확인</div>
+                <div class="step-desc">저장 · 이메일 발송</div>
+            </div>
+            <div class="flow-item">
+                <div class="step-num">5단계</div>
+                <div class="step-name">문서 관리</div>
+                <div class="step-desc">예약확정 · 시공완료</div>
+            </div>
+            <div class="flow-item">
+                <div class="step-num">6단계</div>
+                <div class="step-name">매출 관리</div>
+                <div class="step-desc">마진 · 정산완료</div>
+            </div>
+            <div class="flow-item hq">
+                <div class="step-num">7단계</div>
+                <div class="step-name">정산 내역</div>
+                <div class="step-desc">월별 정산 확인</div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle" style="margin-top:2px; flex-shrink:0;"></i>
+            <div>
+                <strong>로그인 URL</strong><br>
+                https://dev-multi-tenant.pv5-webapp.pages.dev/static/login<br>
+                지사 계정과 본사 계정은 동일한 로그인 페이지를 사용하며, 로그인 후 권한에 따라 화면이 다르게 표시됩니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 지사 가이드 개요 -->
+    <div class="section" id="branch-guide">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-store"></i></div>
+            지사 사용 가이드 개요
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-sign-in-alt"></i> 로그인 및 시작</h4>
+            <ul>
+                <li>로그인 페이지에서 지사 계정으로 로그인합니다.</li>
+                <li>로그인 후 <strong>1단계 거래명세서 업로드</strong> 화면이 표시됩니다.</li>
+                <li>배정 목록에서 본사가 배정한 고객을 확인할 수 있습니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-exchange-alt"></i> 문서 상태 흐름</h4>
+            <div class="status-row">
+                <span class="status-badge s-orange"><i class="fas fa-exclamation-circle"></i> 작성 필요</span>
+                <span style="color:#94a3b8; align-self:center;">→</span>
+                <span class="status-badge s-blue"><i class="fas fa-clipboard-list"></i> 예약 접수 중</span>
+                <span style="color:#94a3b8; align-self:center;">→</span>
+                <span class="status-badge s-green"><i class="fas fa-check-circle"></i> 예약 확정</span>
+                <span style="color:#94a3b8; align-self:center;">→</span>
+                <span class="status-badge s-gray"><i class="fas fa-check-double"></i> 시공 완료</span>
+            </div>
+            <ul style="margin-top:10px;">
+                <li><strong>작성 필요</strong>: 본사 배정 완료, 아직 작성 시작 전</li>
+                <li><strong>예약 접수 중</strong>: 4단계까지 저장 완료 (draft 상태)</li>
+                <li><strong>예약 확정</strong>: 5단계에서 [예약 확정] 버튼 클릭 후</li>
+                <li><strong>시공 완료</strong>: 5단계에서 [시공 완료] 버튼 클릭 후 → 6단계로 이동</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 3. 1단계 -->
+    <div class="section" id="step1">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-upload"></i></div>
+            1단계: 거래명세서 업로드
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-tasks"></i> 배정 목록 확인</h4>
+            <ul>
+                <li>화면 상단에 본사가 배정한 고객 목록이 표시됩니다.</li>
+                <li><span class="status-badge s-orange" style="font-size:0.75rem; padding:2px 8px;">작성 필요</span> 상태의 고객을 선택해 작성을 시작합니다.</li>
+                <li>이미 저장된 문서는 <strong>5단계 저장 문서 관리</strong>에서 확인합니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-pencil-alt"></i> 고객 정보 직접 입력</h4>
+            <ul>
+                <li>배정 목록에서 고객을 선택하면 고객 정보가 자동으로 채워집니다.</li>
+                <li>고객명, 연락처, 주소 등 필요한 정보를 직접 입력하거나 수정합니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-arrow-right"></i> 다음 단계로</h4>
+            <ul>
+                <li>고객 정보 확인 후 <span class="btn-sample btn-blue"><i class="fas fa-arrow-right"></i> 다음</span> 버튼을 클릭합니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 4. 2단계 -->
+    <div class="section" id="step2">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-box-open"></i></div>
+            2단계: 제품 선택
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-tags"></i> 브랜드별 제품 선택</h4>
+            <ul>
+                <li>상단 탭에서 <strong>밀워키(Milwaukee)</strong> 또는 <strong>기아(KIA)</strong> 브랜드를 선택합니다.</li>
+                <li>제품 카드를 클릭해 원하는 패키지를 선택합니다. (다중 선택 가능)</li>
+                <li><strong>3단 선반</strong> 제품은 설치 위치(좌측/우측/양측)를 추가 선택합니다.</li>
+            </ul>
+            <div class="tip">
+                <i class="fas fa-lightbulb"></i>
+                선택한 제품은 카드 테두리가 파란색으로 표시됩니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 3단계 -->
+    <div class="section" id="step3">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-calendar-alt"></i></div>
+            3단계: 설치 정보 입력
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-info-circle"></i> 입력 항목</h4>
+            <ul>
+                <li><strong>설치 날짜</strong>: 달력에서 설치 예정 날짜를 선택합니다.</li>
+                <li><strong>설치 시간</strong>: 오전/오후 + 시/분을 선택하거나 직접 입력합니다.</li>
+                <li><strong>설치 주소</strong>: 배정 정보에서 자동 입력되며, 수정 가능합니다. [고객 주소 복사] 버튼으로 자동 입력도 됩니다.</li>
+                <li><strong>특이사항</strong>: 시공 관련 메모를 입력합니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-save"></i> 임시저장</h4>
+            <ul>
+                <li>날짜 없이 저장 → <span class="status-badge s-yellow" style="font-size:0.75rem; padding:2px 8px;">조율 중</span> 상태로 저장</li>
+                <li>날짜 입력 후 저장 → <span class="status-badge s-blue" style="font-size:0.75rem; padding:2px 8px;">예약 접수 중</span> 상태로 저장</li>
+            </ul>
+            <div class="tip">
+                <i class="fas fa-lightbulb"></i>
+                임시저장 후 나중에 5단계에서 [수정하기]로 다시 편집할 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 4단계 -->
+    <div class="section" id="step4">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-check-circle"></i></div>
+            4단계: 최종 확인 및 저장
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-eye"></i> 최종 확인</h4>
+            <ul>
+                <li>고객 정보, 제품, 설치 정보를 최종 확인합니다.</li>
+                <li><strong>자재 점검표</strong> 체크박스를 확인합니다.</li>
+                <li><strong>시공자 이름</strong>을 입력합니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-paper-plane"></i> 저장 및 발송 버튼</h4>
+            <div class="btn-row">
+                <span class="btn-sample btn-blue"><i class="fas fa-save"></i> 저장하기</span>
+                <span class="btn-sample btn-green"><i class="fas fa-envelope"></i> 이메일 발송</span>
+                <span class="btn-sample btn-gray"><i class="fas fa-print"></i> PDF 인쇄</span>
+            </div>
+            <ul>
+                <li><strong>저장하기</strong>: Cloudflare D1 DB에 저장 + 거래명세서 이미지 R2에 저장</li>
+                <li><strong>이메일 발송</strong>: 고객에게 거래명세서 이미지 포함 이메일 발송</li>
+                <li><strong>PDF 인쇄</strong>: 브라우저 인쇄 기능으로 PDF 저장 가능</li>
+            </ul>
+            <div class="tip">
+                <i class="fas fa-lightbulb"></i>
+                저장 완료 후 자동으로 초기화되어 새 고객 접수를 바로 시작할 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. 5단계 -->
+    <div class="section" id="step5">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-folder-open"></i></div>
+            5단계: 저장 문서 관리
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-search"></i> 검색 및 필터</h4>
+            <ul>
+                <li><strong>기간 검색</strong>: 시작 날짜 ~ 종료 날짜로 필터링</li>
+                <li><strong>고객명 검색</strong>: 고객 이름, 주소, 시공자로 검색</li>
+                <li><strong>상태 필터</strong>: 전체 / 예약 접수 중 / 예약 확정 / 시공 완료</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-hand-pointer"></i> 각 문서 카드 버튼</h4>
+            <div class="btn-row">
+                <span class="btn-sample btn-green"><i class="fas fa-eye"></i> 상세보기</span>
+                <span class="btn-sample btn-blue"><i class="fas fa-edit"></i> 수정하기</span>
+                <span class="btn-sample btn-orange"><i class="fas fa-calendar-check"></i> 예약 확정</span>
+                <span class="btn-sample btn-purple"><i class="fas fa-hammer"></i> 시공 완료</span>
+                <span class="btn-sample btn-red"><i class="fas fa-trash"></i> 삭제</span>
+            </div>
+            <ul>
+                <li><strong>예약 확정</strong>: draft → confirmed 상태 변경 (본사에서 확인 가능)</li>
+                <li><strong>시공 완료</strong>: confirmed → completed 상태 변경 → 5단계에서 사라지고 <strong>6단계 매출 관리</strong>로 이동</li>
+            </ul>
+            <div class="warn-box">
+                <i class="fas fa-exclamation-triangle" style="flex-shrink:0; margin-top:2px;"></i>
+                <div>시공 완료 처리 후 해당 문서는 5단계에서 사라집니다. 6단계에서 확인하세요.</div>
+            </div>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-file-excel"></i> Excel 내보내기</h4>
+            <ul>
+                <li>전체 문서를 Excel 파일로 다운로드합니다.</li>
+                <li>파일명: <code>PV5_시공확인서_YYYY-MM-DD.xlsx</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 8. 6단계 -->
+    <div class="section page-break" id="step6">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-chart-line"></i></div>
+            6단계: 매출 관리
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-tachometer-alt"></i> 매출 통계 대시보드</h4>
+            <ul>
+                <li><strong>총 매출액</strong>: 시공 완료된 전체 매출 합계</li>
+                <li><strong>총 소비자 가격</strong>: 소비자가 기준 합계</li>
+                <li><strong>시공 건수</strong>: 완료 건수 및 평균 매출</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-filter"></i> 기간 검색 필터</h4>
+            <ul>
+                <li>이번 주 / 이번 달 / 이번 분기 / 사용자 지정 기간 선택</li>
+                <li>고객명으로 추가 검색 가능</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-check-double"></i> 정산 처리</h4>
+            <div class="btn-row">
+                <span class="btn-sample btn-red"><i class="fas fa-check-double"></i> 선택항목 일괄 정산완료</span>
+                <span class="btn-sample btn-green"><i class="fas fa-check"></i> 정산완료 (개별)</span>
+                <span class="btn-sample btn-orange"><i class="fas fa-undo"></i> 5단계로 수정</span>
+            </div>
+            <ul>
+                <li><strong>개별 정산완료</strong>: 각 행 우측 [✅ 정산완료] 버튼 클릭 → 정산 라벨 입력 후 확인</li>
+                <li><strong>일괄 정산완료</strong>: 체크박스로 여러 건 선택 후 [선택항목 일괄 정산완료] 버튼 클릭</li>
+                <li><strong>5단계로 수정</strong>: 시공 완료를 취소하고 5단계로 되돌림</li>
+            </ul>
+            <div class="tip">
+                <i class="fas fa-lightbulb"></i>
+                정산 라벨 입력 예시: "2026년 3월 정산" → 7단계에서 월별로 분류되어 표시됩니다.
+            </div>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-file-excel"></i> Excel 다운로드</h4>
+            <ul>
+                <li>매출 목록을 Excel로 다운로드합니다.</li>
+                <li>파일명: <code>PV5_매출관리_YYYY-MM-DD.xlsx</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 9. 7단계 -->
+    <div class="section" id="step7">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-receipt"></i></div>
+            7단계: 정산 내역
+        </div>
+        <div class="step-badge"><i class="fas fa-store"></i> 지사 전용</div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-layer-group"></i> 월별 정산 내역 조회</h4>
+            <ul>
+                <li>6단계에서 정산 완료된 항목이 월별로 그룹화되어 표시됩니다.</li>
+                <li>각 그룹을 클릭하면 세부 내역(고객명, 제품, 매출, 시공자)을 확인할 수 있습니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-download"></i> 월별 Excel 다운로드</h4>
+            <ul>
+                <li>각 월별 그룹 옆 <span class="btn-sample btn-blue"><i class="fas fa-file-excel"></i> Excel</span> 버튼 클릭</li>
+                <li>파일명: <code>2026년 2월 정산.xlsx</code> (정산 라벨 기준)</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-undo"></i> 6단계로 되돌리기</h4>
+            <ul>
+                <li>정산 취소가 필요한 경우 [↩ 6단계로 되돌리기] 버튼 클릭</li>
+                <li>해당 항목이 다시 6단계 매출 관리로 이동됩니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 10. 본사 가이드 -->
+    <div class="section page-break" id="hq-guide">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-building"></i></div>
+            본사 관리 페이지
+        </div>
+        <div class="step-badge hq"><i class="fas fa-building"></i> 본사 전용</div>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle" style="flex-shrink:0; margin-top:2px;"></i>
+            <div>
+                본사 계정으로 로그인하면 전체 지사 관리 화면이 표시됩니다.<br>
+                URL: <strong>https://dev-multi-tenant.pv5-webapp.pages.dev/static/hq</strong>
+            </div>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-plus-circle"></i> 고객 배정 등록</h4>
+            <ul>
+                <li>[+ 배정 추가] 버튼 클릭 → 고객 정보 입력 → 지사 선택 → 등록</li>
+                <li>등록 즉시 해당 지사 1단계 배정 목록에 표시됩니다.</li>
+                <li><strong>동일 고객 + 동일 지사 + 동일 날짜 중복 등록은 자동 차단됩니다.</strong></li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-table"></i> 전체 접수 현황 테이블</h4>
+            <ul>
+                <li>모든 지사의 접수 현황을 한눈에 확인합니다.</li>
+                <li>컬럼 순서: 접수일자 → 상태 → 주문자명 → 연락처 → 제품 → 지사</li>
+            </ul>
+            <div class="status-row">
+                <span class="status-badge s-orange"><i class="fas fa-clock"></i> 대기 중</span>
+                <span class="status-badge s-yellow"><i class="fas fa-hourglass-half"></i> 조율 중</span>
+                <span class="status-badge s-blue"><i class="fas fa-clipboard-list"></i> 진행 중</span>
+                <span class="status-badge s-green"><i class="fas fa-check-circle"></i> 예약 확정</span>
+                <span class="status-badge s-gray"><i class="fas fa-check-double"></i> 시공 완료</span>
+            </div>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-chart-bar"></i> 통계 대시보드</h4>
+            <ul>
+                <li>전체 건수 / 진행 중 건수 / 완료 건수를 카드 형태로 표시</li>
+                <li>지사별 현황을 빠르게 파악할 수 있습니다.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-exchange-alt"></i> 상태 관리</h4>
+            <ul>
+                <li>각 배정 건의 상태를 본사에서 직접 변경할 수 있습니다.</li>
+                <li>지사 대리 접속: 특정 지사를 선택해 해당 지사 화면을 확인할 수 있습니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 11. FAQ -->
+    <div class="section" id="faq">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-question-circle"></i></div>
+            자주 묻는 질문 (FAQ)
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-q">
+                <span class="q-badge">Q</span>
+                저장했는데 5단계 문서 목록에 안 보입니다.
+            </div>
+            <div class="faq-a">
+                <span class="a-badge">A</span>
+                시공 완료 처리된 문서는 5단계에서 자동으로 제외되고 <strong>6단계 매출 관리</strong>로 이동됩니다.
+                6단계를 확인해보세요. 그래도 없다면 로그아웃 후 재로그인하면 서버에서 새로 불러옵니다.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-q">
+                <span class="q-badge">Q</span>
+                1단계 배정 목록에서 이미 저장한 고객이 또 보입니다.
+            </div>
+            <div class="faq-a">
+                <span class="a-badge">A</span>
+                배정 목록은 <strong>아직 작성을 시작하지 않은 건만</strong> 표시됩니다.
+                이미 저장된 고객이 배정 목록에 보인다면, 5단계에서 해당 문서를 확인하고
+                저장이 완료됐는지 확인하세요.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-q">
+                <span class="q-badge">Q</span>
+                같은 고객이 두 번 등록됩니다.
+            </div>
+            <div class="faq-a">
+                <span class="a-badge">A</span>
+                동일 고객 + 동일 지사 + 동일 날짜로 등록 시 자동으로 중복이 차단됩니다.
+                날짜가 다르거나 다른 지사에서 등록한 경우는 별도 건으로 처리됩니다.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-q">
+                <span class="q-badge">Q</span>
+                정산 완료한 건을 다시 수정하고 싶습니다.
+            </div>
+            <div class="faq-a">
+                <span class="a-badge">A</span>
+                <strong>7단계 정산 내역</strong>에서 해당 건의 [↩ 6단계로 되돌리기] 버튼을 클릭하면
+                6단계 매출 관리로 이동됩니다. 6단계에서 [↩ 5단계로 수정] 버튼으로 추가 수정도 가능합니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 12. 문의 -->
+    <div class="section" id="contact">
+        <div class="section-title">
+            <div class="icon"><i class="fas fa-headset"></i></div>
+            문의 및 지원
+        </div>
+
+        <div class="guide-card">
+            <h4><i class="fas fa-info-circle"></i> 시스템 정보</h4>
+            <ul>
+                <li><strong>시스템명</strong>: K-VAN PV5 시공관리 시스템</li>
+                <li><strong>서비스 URL</strong>: https://dev-multi-tenant.pv5-webapp.pages.dev</li>
+                <li><strong>현재 버전</strong>: v3.9 (2026년 3월 기준)</li>
+                <li><strong>운영 플랫폼</strong>: Cloudflare Pages (글로벌 엣지 서버)</li>
+            </ul>
+        </div>
+
+        <div class="info-box">
+            <i class="fas fa-shield-alt" style="flex-shrink:0; margin-top:2px;"></i>
+            <div>
+                <strong>데이터 보안</strong><br>
+                모든 데이터는 Cloudflare D1(SQLite) 데이터베이스에 암호화하여 저장되며,
+                이미지는 Cloudflare R2 스토리지에 별도 보관됩니다.
+                JWT 인증으로 권한별 접근이 제어됩니다.
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 푸터 -->
+<div class="footer">
+    <p>© 2026 K-VAN PV5 시공관리 시스템 · 사인마스터 AI 팀</p>
+    <p style="margin-top:4px;">본 설명서는 시스템 업데이트에 따라 변경될 수 있습니다.</p>
+</div>
+
+<!-- PDF 다운로드 스크립트 -->
+<script>
+function downloadPDF() {
+    // 인쇄 다이얼로그로 PDF 저장
+    const originalTitle = document.title;
+    document.title = 'K-VAN_PV5_사용설명서_v3.9';
+    window.print();
+    setTimeout(() => { document.title = originalTitle; }, 1000);
+}
+</script>
+
+</body>
+</html>

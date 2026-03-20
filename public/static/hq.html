@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>본사 - 기아 순정 액세서리 설치 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-badge-adjusting    { background:#fef3c7; color:#d97706; }
+        .status-badge-assigned     { background:#dbeafe; color:#2563eb; }
+        .status-badge-in_progress  { background:#ede9fe; color:#7c3aed; }
+        .status-badge-inst_confirmed { background:#ffedd5; color:#ea580c; }
+        .status-badge-completed    { background:#dcfce7; color:#16a34a; }
+        input:focus, select:focus, textarea:focus { outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.25); }
+        /* 수정 모달 */
+        #editModal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); align-items:center; justify-content:center; }
+        #editModal.open { display:flex; }
+    </style>
+</head>
+<body class="bg-gray-50">
+<div class="min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white py-5 shadow-lg">
+        <div class="container mx-auto px-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <img src="/static/kvan-logo.png" alt="K-VAN" class="h-11 bg-white px-3 py-1 rounded-lg">
+                <div>
+                    <h1 class="text-2xl font-bold"><i class="fas fa-building mr-2"></i>본사 접수 관리 시스템</h1>
+                    <p class="text-blue-200 text-sm mt-0.5">고객 접수 등록 및 지사 배정</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="userInfo" class="text-blue-200 text-sm"></span>
+                <a href="/static/launcher" class="bg-white text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 font-semibold text-sm">
+                    <i class="fas fa-home mr-1"></i>메인
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Nav -->
+    <div class="container mx-auto px-4 mt-6">
+        <div class="bg-white rounded-xl shadow-sm mb-6 flex border-b overflow-hidden">
+            <button onclick="showTab('register')" id="tab-register"
+                    class="flex-1 px-6 py-4 font-semibold text-blue-600 border-b-2 border-blue-600 transition">
+                <i class="fas fa-plus-circle mr-2"></i>신규 접수 등록
+            </button>
+            <button onclick="showTab('list')" id="tab-list"
+                    class="flex-1 px-6 py-4 font-semibold text-gray-500 hover:text-blue-600 transition">
+                <i class="fas fa-list mr-2"></i>접수 현황
+            </button>
+            <button onclick="showTab('dashboard')" id="tab-dashboard"
+                    class="flex-1 px-6 py-4 font-semibold text-gray-500 hover:text-blue-600 transition">
+                <i class="fas fa-chart-bar mr-2"></i>통계 대시보드
+            </button>
+            <button onclick="showTab('prices')" id="tab-prices"
+                    class="flex-1 px-6 py-4 font-semibold text-gray-500 hover:text-blue-600 transition">
+                <i class="fas fa-box-open mr-2"></i>제품 관리
+            </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════
+             접수 등록 폼
+        ══════════════════════════════════════════════ -->
+        <div id="content-register" class="bg-white rounded-xl shadow-sm p-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-file-alt text-blue-600 mr-2"></i>신규 접수 등록
+            </h2>
+
+            <form id="assignmentForm" class="space-y-5" autocomplete="off">
+
+                <!-- 행 1: 접수 일자 / 담당 지사 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-calendar-alt text-blue-500 mr-1.5"></i>접수 일자 *
+                        </label>
+                        <input type="date" id="orderDate" required
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-building text-blue-500 mr-1.5"></i>담당 지사 *
+                        </label>
+                        <select id="branchId" required
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400">
+                            <option value="">지사를 선택하세요</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 행 2: 주문자명 / 연락처 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-user text-blue-500 mr-1.5"></i>주문자명 *
+                        </label>
+                        <input type="text" id="customerName" required
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+                               placeholder="고객 이름을 입력하세요">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-phone text-blue-500 mr-1.5"></i>연락처 *
+                        </label>
+                        <input type="tel" id="phone" required
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+                               placeholder="010-0000-0000">
+                    </div>
+                </div>
+
+                <!-- 행 3: 고객 주소 -->
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-1.5">
+                        <i class="fas fa-map-marker-alt text-blue-500 mr-1.5"></i>고객 주소 *
+                    </label>
+                    <input type="text" id="address" required
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+                           placeholder="설치 주소를 입력하세요">
+                </div>
+
+                <!-- 행 4: 상품명 / 메모 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-box text-blue-500 mr-1.5"></i>상품명
+                        </label>
+                        <input type="text" id="productName"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+                               placeholder="예: PV5 스마트패키지">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-1.5">
+                            <i class="fas fa-sticky-note text-blue-500 mr-1.5"></i>메모
+                        </label>
+                        <input type="text" id="notes"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+                               placeholder="특이사항을 입력하세요">
+                    </div>
+                </div>
+
+                <!-- 버튼 -->
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="submitBtn"
+                            class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow">
+                        <i class="fas fa-paper-plane mr-2"></i>접수 등록
+                    </button>
+                    <button type="button" onclick="resetForm()"
+                            class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
+                        <i class="fas fa-redo mr-2"></i>초기화
+                    </button>
+                </div>
+            </form>
+
+            <!-- 피드백 메시지 -->
+            <div id="successMessage" class="hidden mt-5 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
+                <i class="fas fa-check-circle text-xl"></i>
+                <span id="successText"></span>
+            </div>
+            <div id="errorMessage" class="hidden mt-5 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-center gap-2">
+                <i class="fas fa-exclamation-circle text-xl"></i>
+                <span id="errorText"></span>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════
+             접수 현황
+        ══════════════════════════════════════════════ -->
+        <div id="content-list" class="hidden bg-white rounded-xl shadow-sm p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-clipboard-list text-blue-600 mr-2"></i>전체 접수 현황
+                </h2>
+                <button onclick="loadAssignments()" class="text-sm text-blue-600 hover:underline">
+                    <i class="fas fa-sync-alt mr-1"></i>새로고침
+                </button>
+            </div>
+
+            <!-- 필터 -->
+            <div class="mb-5 flex flex-wrap gap-3">
+                <select id="filterBranch" onchange="loadAssignments()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">전체 지사</option>
+                </select>
+                <select id="filterStatus" onchange="loadAssignments()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">전체 상태</option>
+                    <option value="adjusting">조율 중</option>
+                    <option value="assigned">예약 접수 중</option>
+                    <option value="in_progress">예약 확정</option>
+                    <option value="inst_confirmed">시공 확정</option>
+                    <option value="completed">시공 완료</option>
+                </select>
+            </div>
+
+            <!-- 접수 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 border-b text-gray-600">
+                            <th class="px-4 py-3 text-left font-semibold">접수일자</th>
+                            <th class="px-4 py-3 text-center font-semibold">상태</th>
+                            <th class="px-4 py-3 text-left font-semibold">주문자명</th>
+                            <th class="px-4 py-3 text-left font-semibold">연락처</th>
+                            <th class="px-4 py-3 text-left font-semibold">주소</th>
+                            <th class="px-4 py-3 text-left font-semibold">상품명</th>
+                            <th class="px-4 py-3 text-left font-semibold">담당 지사</th>
+                            <th class="px-4 py-3 text-left font-semibold">메모</th>
+                            <th class="px-4 py-3 text-center font-semibold">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentList">
+                        <tr><td colspan="8" class="text-center py-10 text-gray-400">로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════
+             통계 대시보드
+        ══════════════════════════════════════════════ -->
+        <div id="content-dashboard" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-500 text-sm">전체 접수</div>
+                        <div class="text-3xl font-bold text-blue-600 mt-1" id="statTotal">0</div>
+                    </div>
+                    <i class="fas fa-clipboard-list text-blue-300 text-4xl"></i>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-500 text-sm">진행 중</div>
+                        <div class="text-3xl font-bold text-yellow-600 mt-1" id="statInProgress">0</div>
+                    </div>
+                    <i class="fas fa-spinner text-yellow-300 text-4xl"></i>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-500 text-sm">완료</div>
+                        <div class="text-3xl font-bold text-green-600 mt-1" id="statCompleted">0</div>
+                    </div>
+                    <i class="fas fa-check-circle text-green-300 text-4xl"></i>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <h3 class="text-lg font-bold text-gray-800 mb-5">
+                    <i class="fas fa-building text-blue-600 mr-2"></i>지사별 현황
+                </h3>
+                <div id="branchStats" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════
+             제품 관리 (본사 전용) - 가격 관리 통합
+        ══════════════════════════════════════════════ -->
+        <div id="content-prices" class="hidden space-y-6">
+
+            <!-- ① 신규 제품 등록 카드 -->
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-xl font-bold text-gray-800">
+                        <i class="fas fa-plus-circle text-green-600 mr-2"></i>신규 제품 등록
+                        <span class="ml-2 text-sm font-normal text-gray-500">본사 전용 · 등록 즉시 전 지사 2단계 반영</span>
+                    </h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 브랜드 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">브랜드 *</label>
+                        <select id="np-brand" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="milwaukee">밀워키 에디션</option>
+                            <option value="kia">기아 순정형</option>
+                        </select>
+                    </div>
+                    <!-- 제품명 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">제품명 *</label>
+                        <input id="np-name" type="text" placeholder="PV5 기아 워크스페이스"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <!-- 소비자가 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">소비자가 (원) *</label>
+                        <input id="np-price" type="number" placeholder="1760000" min="0" step="1000"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <!-- 이미지 업로드 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">제품 이미지 <span class="text-xs text-gray-400">(선택)</span></label>
+                        <div class="flex items-center gap-2">
+                            <label class="flex-1 flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm cursor-pointer hover:bg-gray-50 transition">
+                                <i class="fas fa-upload text-gray-400"></i>
+                                <span id="np-image-label" class="text-gray-400 truncate">이미지 파일 선택</span>
+                                <input id="np-image-file" type="file" accept="image/*" class="hidden" onchange="previewProductImage(this)">
+                            </label>
+                            <div id="np-image-preview-wrap" class="hidden">
+                                <img id="np-image-preview" src="" alt="미리보기"
+                                     class="w-12 h-12 object-cover rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                        <!-- 업로드 상태 표시 -->
+                        <p id="np-image-status" class="mt-1 text-xs text-gray-400 hidden"></p>
+                        <!-- 업로드된 이미지 URL (숨김 저장) -->
+                        <input id="np-image-url" type="hidden" value="">
+                    </div>
+                    <!-- 구성 설명 -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">구성 설명</label>
+                        <input id="np-desc" type="text" placeholder="격벽타공판 + 워크스페이스"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="registerPackage()"
+                            class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm">
+                        <i class="fas fa-plus mr-1"></i>제품 등록
+                    </button>
+                </div>
+            </div>
+
+            <!-- ② 기존 제품 목록 + 가격 수정 -->
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-xl font-bold text-gray-800">
+                        <i class="fas fa-box-open text-blue-600 mr-2"></i>전체 제품 관리
+                        <span class="ml-2 text-sm font-normal text-gray-500">가격 수정 · 표시/숨김 · 삭제</span>
+                    </h2>
+                    <button onclick="loadProductManagement()"
+                            class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">
+                        <i class="fas fa-sync-alt mr-1"></i>새로고침
+                    </button>
+                </div>
+                <!-- 안내 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-5 text-sm text-blue-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    가격 수정 후 <strong>저장</strong>하면 즉시 전 지사 2단계에 반영됩니다.
+                    커스텀 제품만 삭제 가능합니다.
+                </div>
+
+                <!-- 밀워키 -->
+                <div class="mb-8">
+                    <h3 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="inline-block w-3 h-3 rounded-full bg-red-500"></span>밀워키 에디션
+                    </h3>
+                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-4 py-3 text-gray-600 font-semibold">제품명</th>
+                                    <th class="text-right px-4 py-3 text-gray-600 font-semibold w-44">소비자가</th>
+                                    <th class="text-center px-4 py-3 text-gray-600 font-semibold w-14">표시</th>
+                                    <th class="text-center px-4 py-3 text-gray-600 font-semibold w-36">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pkgTable-milwaukee" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 기아 -->
+                <div>
+                    <h3 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="inline-block w-3 h-3 rounded-full bg-blue-500"></span>기아 순정형
+                    </h3>
+                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-4 py-3 text-gray-600 font-semibold">제품명</th>
+                                    <th class="text-right px-4 py-3 text-gray-600 font-semibold w-44">소비자가</th>
+                                    <th class="text-center px-4 py-3 text-gray-600 font-semibold w-14">표시</th>
+                                    <th class="text-center px-4 py-3 text-gray-600 font-semibold w-36">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pkgTable-kia" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 변경 이력 -->
+                <div class="mt-8 bg-gray-50 rounded-xl p-5">
+                    <h3 class="text-sm font-bold text-gray-600 mb-3"><i class="fas fa-history mr-1"></i>최근 가격 변경 이력</h3>
+                    <div id="priceHistory" class="text-xs text-gray-500 space-y-1"><p>로딩 중...</p></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /container -->
+</div>
+
+<!-- ══ 수정 모달 ══════════════════════════════════════════════════════════ -->
+<div id="editModal">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8">
+    <h3 class="text-xl font-bold text-gray-800 mb-6">
+      <i class="fas fa-edit text-blue-600 mr-2"></i>접수 정보 수정
+    </h3>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">접수일자</label>
+          <input type="date" id="editOrderDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">담당 지사 *</label>
+          <select id="editBranchId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option value="">지사 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">주문자명 *</label>
+          <input type="text" id="editCustomerName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="고객 이름">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">연락처</label>
+          <input type="tel" id="editPhone" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="010-0000-0000">
+        </div>
+      </div>
+      <div>
+        <label class="block text-gray-700 font-semibold mb-1 text-sm">주소</label>
+        <input type="text" id="editAddress" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="설치 주소">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">상품명</label>
+          <input type="text" id="editProductName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="상품명">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-semibold mb-1 text-sm">메모</label>
+          <input type="text" id="editNotes" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="특이사항">
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="submitEditAssignment()"
+              class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition">
+        <i class="fas fa-save mr-2"></i>저장
+      </button>
+      <button onclick="closeEditModal()"
+              class="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
+        취소
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+<script>
+    // ── axios 전역 인증 헤더 ──────────────────────────────────────────────────
+    ;(function setupAxiosAuth() {
+        const token = localStorage.getItem('token')
+        if (!token) { window.location.href = '/static/login'; return }
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        // 유저 정보 표시
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}')
+            const el = document.getElementById('userInfo')
+            if (el && user.username) el.textContent = `${user.branchName || ''} - ${user.username}`
+        } catch(e) {}
+    })()
+
+    // 오늘 날짜 기본값 세팅
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date().toISOString().split('T')[0]
+        document.getElementById('orderDate').value = today
+        loadBranches()
+    })
+
+    // ── 탭 전환 ──────────────────────────────────────────────────────────────
+    function showTab(tab) {
+        ['register','list','dashboard','prices'].forEach(t => {
+            document.getElementById(`content-${t}`).classList.add('hidden')
+            document.getElementById(`tab-${t}`).classList.remove('text-blue-600','border-b-2','border-blue-600')
+            document.getElementById(`tab-${t}`).classList.add('text-gray-500')
+        })
+        document.getElementById(`content-${tab}`).classList.remove('hidden')
+        document.getElementById(`tab-${tab}`).classList.remove('text-gray-500')
+        document.getElementById(`tab-${tab}`).classList.add('text-blue-600','border-b-2','border-blue-600')
+        if (tab === 'list') loadAssignments()
+        else if (tab === 'dashboard') loadDashboard()
+        else if (tab === 'prices') loadProductManagement()
+    }
+
+    // ── 지사 목록 로드 ────────────────────────────────────────────────────────
+    async function loadBranches() {
+        try {
+            const res = await axios.get('/api/branches')
+            if (res.data.success) {
+                const branchSel   = document.getElementById('branchId')
+                const filterSel   = document.getElementById('filterBranch')
+                res.data.branches.forEach(b => {
+                    branchSel.add(new Option(`${b.name} (${b.code})`, b.id))
+                    filterSel.add(new Option(b.name, b.id))
+                })
+            }
+        } catch(e) { console.error('loadBranches:', e) }
+    }
+
+    // ── 접수 등록 ─────────────────────────────────────────────────────────────
+    document.getElementById('assignmentForm').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const btn = document.getElementById('submitBtn')
+        btn.disabled = true
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>등록 중...'
+
+        const formData = {
+            orderDate:    document.getElementById('orderDate').value,
+            customerName: document.getElementById('customerName').value.trim(),
+            phone:        document.getElementById('phone').value.trim(),
+            address:      document.getElementById('address').value.trim(),
+            productName:  document.getElementById('productName').value.trim(),
+            branchId:     parseInt(document.getElementById('branchId').value),
+            notes:        document.getElementById('notes').value.trim(),
+        }
+
+        try {
+            const res = await axios.post('/api/assignments', formData)
+            if (res.data.success) {
+                document.getElementById('successMessage').classList.remove('hidden')
+                document.getElementById('successText').textContent =
+                    `✅ 접수 완료! (접수번호: ${res.data.assignmentId})`
+                document.getElementById('errorMessage').classList.add('hidden')
+                setTimeout(() => {
+                    resetForm()
+                    document.getElementById('successMessage').classList.add('hidden')
+                }, 3000)
+            }
+        } catch(err) {
+            document.getElementById('errorMessage').classList.remove('hidden')
+            document.getElementById('errorText').textContent =
+                err.response?.data?.error || '접수 등록 중 오류가 발생했습니다.'
+            document.getElementById('successMessage').classList.add('hidden')
+        } finally {
+            btn.disabled = false
+            btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>접수 등록'
+        }
+    })
+
+    // ── 수정 모달 ────────────────────────────────────────────────────────────
+    let editingAssignmentId = null
+
+    function openEditModal(a) {
+        editingAssignmentId = a.assignment_id
+        document.getElementById('editOrderDate').value    = a.order_date || ''
+        document.getElementById('editCustomerName').value = a.customer_name || ''
+        document.getElementById('editPhone').value        = a.customer_phone || ''
+        document.getElementById('editAddress').value      = a.customer_address || ''
+        document.getElementById('editProductName').value  = a.product_name || ''
+        document.getElementById('editNotes').value        = a.notes || ''
+        // 지사 select 세팅
+        const sel = document.getElementById('editBranchId')
+        sel.innerHTML = '<option value="">지사 선택</option>'
+        document.querySelectorAll('#branchId option').forEach(opt => {
+            if (opt.value) sel.add(new Option(opt.text, opt.value, false, String(opt.value) === String(a.branch_id)))
+        })
+        document.getElementById('editModal').classList.add('open')
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('open')
+        editingAssignmentId = null
+    }
+
+    async function submitEditAssignment() {
+        if (!editingAssignmentId) return
+        const customerName = document.getElementById('editCustomerName').value.trim()
+        const branchId     = document.getElementById('editBranchId').value
+        if (!customerName || !branchId) {
+            alert('주문자명과 담당 지사는 필수입니다.')
+            return
+        }
+        try {
+            const res = await axios.put(`/api/assignments/${editingAssignmentId}`, {
+                orderDate:    document.getElementById('editOrderDate').value,
+                customerName,
+                phone:        document.getElementById('editPhone').value.trim(),
+                address:      document.getElementById('editAddress').value.trim(),
+                productName:  document.getElementById('editProductName').value.trim(),
+                branchId:     parseInt(branchId),
+                notes:        document.getElementById('editNotes').value.trim(),
+            })
+            if (res.data.success) {
+                closeEditModal()
+                loadAssignments()
+                alert('✅ 접수 정보가 수정되었습니다.')
+            } else {
+                alert('❌ ' + (res.data.error || '수정 실패'))
+            }
+        } catch(e) {
+            alert('❌ ' + (e.response?.data?.error || '수정 중 오류가 발생했습니다.'))
+        }
+    }
+
+    async function deleteAssignment(assignmentId, customerName) {
+        if (!confirm(`⚠️ [${customerName}] 접수를 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.`)) return
+        try {
+            const res = await axios.delete(`/api/assignments/${assignmentId}`)
+            if (res.data.success) {
+                loadAssignments()
+                alert('✅ 접수가 삭제되었습니다.')
+            } else {
+                alert('❌ ' + (res.data.error || '삭제 실패'))
+            }
+        } catch(e) {
+            alert('❌ ' + (e.response?.data?.error || '삭제 중 오류가 발생했습니다.'))
+        }
+    }
+
+    // 모달 바깥 클릭 시 닫기
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal()
+    })
+
+    function resetForm() {
+        document.getElementById('assignmentForm').reset()
+        const today = new Date().toISOString().split('T')[0]
+        document.getElementById('orderDate').value = today
+    }
+
+    // ── 접수 현황 로드 ────────────────────────────────────────────────────────
+    async function loadAssignments() {
+        try {
+            const branchId = document.getElementById('filterBranch').value
+            const status   = document.getElementById('filterStatus').value
+            const params   = new URLSearchParams()
+            if (branchId) params.append('branchId', branchId)
+            if (status)   params.append('status', status)
+
+            const res = await axios.get(`/api/assignments?${params}`)
+            if (!res.data.success) return
+
+            const tbody = document.getElementById('assignmentList')
+            const list  = res.data.assignments
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-gray-400">
+                    <i class="fas fa-inbox text-4xl block mb-2"></i>접수 내역이 없습니다.</td></tr>`
+                return
+            }
+
+            const statusLabel = { adjusting:'조율 중', assigned:'예약 접수 중', in_progress:'예약 확정', inst_confirmed:'시공 확정', completed:'시공 완료' }
+            const statusClass = { adjusting:'status-badge-adjusting', assigned:'status-badge-assigned', in_progress:'status-badge-in_progress', inst_confirmed:'status-badge-inst_confirmed', completed:'status-badge-completed' }
+
+            tbody.innerHTML = list.map(a => `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 text-gray-700 whitespace-nowrap">${a.order_date || a.assigned_at?.split('T')[0] || '-'}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusClass[a.status] || ''}">
+                            ${statusLabel[a.status] || a.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">${a.customer_name}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${a.customer_phone || '-'}</td>
+                    <td class="px-4 py-3 text-gray-600 max-w-xs truncate" title="${a.customer_address||''}">${a.customer_address || '-'}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${a.product_name || '-'}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${a.branch_name || '-'}</td>
+                    <td class="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">${a.notes || '-'}</td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <button onclick="openEditModal(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+                                class="text-blue-600 hover:text-blue-800 mr-2" title="수정">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteAssignment('${a.assignment_id}', '${a.customer_name}')"
+                                class="text-red-500 hover:text-red-700" title="삭제">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('')
+        } catch(e) { console.error('loadAssignments:', e) }
+    }
+
+    // ── 대시보드 로드 ─────────────────────────────────────────────────────────
+    async function loadDashboard() {
+        try {
+            const res = await axios.get('/api/assignments')
+            if (!res.data.success) return
+            const list = res.data.assignments
+
+            document.getElementById('statTotal').textContent      = list.length
+            document.getElementById('statInProgress').textContent = list.filter(a => ['in_progress','inst_confirmed'].includes(a.status)).length
+            document.getElementById('statCompleted').textContent  = list.filter(a => a.status === 'completed').length
+
+            const groups = {}
+            list.forEach(a => {
+                if (!groups[a.branch_name]) groups[a.branch_name] = { adjusting:0, assigned:0, in_progress:0, inst_confirmed:0, completed:0 }
+                if (groups[a.branch_name][a.status] !== undefined) groups[a.branch_name][a.status]++
+            })
+
+            document.getElementById('branchStats').innerHTML = Object.entries(groups).map(([name, s]) => `
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-bold text-gray-700 mb-3">${name}</h4>
+                    <div class="grid grid-cols-5 gap-2 text-center">
+                        <div><div class="text-xl font-bold text-yellow-600">${s.adjusting||0}</div><div class="text-xs text-gray-500">조율 중</div></div>
+                        <div><div class="text-xl font-bold text-blue-600">${s.assigned||0}</div><div class="text-xs text-gray-500">예약접수</div></div>
+                        <div><div class="text-xl font-bold text-purple-600">${s.in_progress||0}</div><div class="text-xs text-gray-500">예약확정</div></div>
+                        <div><div class="text-xl font-bold text-orange-600">${s.inst_confirmed||0}</div><div class="text-xs text-gray-500">시공확정</div></div>
+                        <div><div class="text-xl font-bold text-green-600">${s.completed||0}</div><div class="text-xs text-gray-500">시공완료</div></div>
+                    </div>
+                </div>
+            `).join('')
+        } catch(e) { console.error('loadDashboard:', e) }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 제품 관리 (가격 관리 통합) - 본사 전용
+    // ══════════════════════════════════════════════════════════════
+    let allPkgData = []   // 전체 패키지 캐시 (packages_price 포함)
+    let allCustomPkgs = [] // custom_packages DB 목록
+
+    // 제품 관리 탭 진입 시 호출
+    async function loadProductManagement() {
+        await Promise.all([loadAllPrices(), loadCustomPackages()])
+        renderProductTables()
+    }
+
+    // packages_price 전체 로드
+    async function loadAllPrices() {
+        try {
+            const token = localStorage.getItem('token')
+            const res = await axios.get('/api/packages/prices', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            allPkgData = res.data.prices || []
+        } catch(e) { console.error('loadAllPrices:', e) }
+    }
+
+    // custom_packages DB 로드
+    async function loadCustomPackages() {
+        try {
+            const token = localStorage.getItem('token')
+            const res = await axios.get('/api/custom-packages', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            allCustomPkgs = res.data.packages || []
+        } catch(e) { console.error('loadCustomPackages:', e) }
+    }
+
+    // 테이블 렌더링 (밀워키 / 기아 분리)
+    function renderProductTables() {
+        const milwaukeeBody = document.getElementById('pkgTable-milwaukee')
+        const kiaBody       = document.getElementById('pkgTable-kia')
+        const historyDiv    = document.getElementById('priceHistory')
+        if (!milwaukeeBody || !kiaBody) return
+
+        // custom_packages id set
+        const customIds = new Set(allCustomPkgs.map(p => p.package_id))
+
+        // packages_price를 map으로 변환 (가격 조회용)
+        const priceMap = {}
+        allPkgData.forEach(p => { priceMap[p.package_id] = p })
+
+        // custom_packages를 packages_price 형식으로 변환하여 병합
+        const customAsPriceItems = allCustomPkgs.map(cp => ({
+            package_id:   cp.package_id,
+            package_name: cp.name,
+            price:        priceMap[cp.package_id] ? priceMap[cp.package_id].price : cp.price,
+            updated_by:   priceMap[cp.package_id] ? priceMap[cp.package_id].updated_by : 'system',
+            updated_at:   priceMap[cp.package_id] ? priceMap[cp.package_id].updated_at : cp.updated_at
+        }))
+        // packages_price 중 custom이 아닌 기본 제품만 추출
+        const baseItems = allPkgData.filter(p => !customIds.has(p.package_id))
+        // 기본 제품 + 커스텀 제품 합산
+        const allItems = [...baseItems, ...customAsPriceItems]
+
+        const milwaukeeItems = allItems.filter(p => p.package_id.startsWith('milwaukee'))
+        const kiaItems       = allItems.filter(p => p.package_id.startsWith('kia'))
+
+        function buildRows(items, tbody) {
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-400">데이터 없음</td></tr>`
+                return
+            }
+            tbody.innerHTML = items.map(p => {
+                const isCustom = customIds.has(p.package_id)
+                return `
+                <tr class="hover:bg-gray-50 transition" id="pkgrow-${p.package_id}">
+                    <td class="px-4 py-3 font-medium text-gray-800">
+                        ${p.package_name}
+                        ${isCustom ? '<span class="ml-1.5 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">커스텀</span>' : ''}
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <span id="pkg-display-${p.package_id}" class="text-blue-600 font-bold">
+                            ₩${Number(p.price).toLocaleString('ko-KR')}
+                        </span>
+                        <input id="pkg-input-${p.package_id}" type="number" value="${p.price}"
+                               class="hidden w-32 text-right border border-blue-400 rounded-lg px-2 py-1 text-sm"
+                               min="0" step="1000">
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        ${isCustom ? `
+                        <button onclick="togglePkgActive('${p.package_id}')"
+                                class="px-2 py-1 text-xs rounded-lg font-semibold ${getPkgActive(p.package_id) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+                            ${getPkgActive(p.package_id) ? '표시' : '숨김'}
+                        </button>` : '<span class="text-xs text-gray-400">기본</span>'}
+                    </td>
+                    <td class="px-4 py-3 text-center flex items-center justify-center gap-1 flex-wrap">
+                        <button id="pkg-btn-edit-${p.package_id}" onclick="startPkgEdit('${p.package_id}')"
+                                class="px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200">
+                            <i class="fas fa-pencil-alt mr-0.5"></i>수정
+                        </button>
+                        <button id="pkg-btn-save-${p.package_id}" onclick="savePkgPrice('${p.package_id}')"
+                                class="hidden px-2.5 py-1.5 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600">
+                            <i class="fas fa-check mr-0.5"></i>저장
+                        </button>
+                        <button id="pkg-btn-cancel-${p.package_id}" onclick="cancelPkgEdit('${p.package_id}', ${p.price})"
+                                class="hidden px-2.5 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-300">
+                            취소
+                        </button>
+                        ${isCustom ? `
+                        <button onclick="deleteCustomPkg('${p.package_id}', '${p.package_name}')"
+                                class="px-2.5 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-200">
+                            <i class="fas fa-trash"></i>
+                        </button>` : ''}
+                    </td>
+                </tr>`
+            }).join('')
+        }
+
+        buildRows(milwaukeeItems, milwaukeeBody)
+        buildRows(kiaItems, kiaBody)
+
+        // 변경 이력
+        const recent = allPkgData
+            .filter(p => p.updated_by && p.updated_by !== 'system')
+            .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+            .slice(0, 5)
+        historyDiv.innerHTML = recent.length === 0
+            ? '<p class="text-gray-400">아직 수정 이력이 없습니다.</p>'
+            : recent.map(p => `
+                <div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span class="font-medium text-gray-700">${p.package_name}</span>
+                    <span class="text-blue-600 font-bold">₩${Number(p.price).toLocaleString('ko-KR')}</span>
+                    <span class="text-gray-400">${p.updated_by} · ${(p.updated_at||'').slice(0,16)}</span>
+                </div>`).join('')
+    }
+
+    function getPkgActive(packageId) {
+        const cp = allCustomPkgs.find(p => p.package_id === packageId)
+        return cp ? cp.is_active === 1 : true
+    }
+
+    // 가격 수정 모드
+    function startPkgEdit(pid) {
+        document.getElementById(`pkg-display-${pid}`).classList.add('hidden')
+        document.getElementById(`pkg-input-${pid}`).classList.remove('hidden')
+        document.getElementById(`pkg-btn-edit-${pid}`).classList.add('hidden')
+        document.getElementById(`pkg-btn-save-${pid}`).classList.remove('hidden')
+        document.getElementById(`pkg-btn-cancel-${pid}`).classList.remove('hidden')
+        document.getElementById(`pkg-input-${pid}`).focus()
+    }
+    function cancelPkgEdit(pid, origPrice) {
+        document.getElementById(`pkg-display-${pid}`).classList.remove('hidden')
+        document.getElementById(`pkg-input-${pid}`).classList.add('hidden')
+        document.getElementById(`pkg-btn-edit-${pid}`).classList.remove('hidden')
+        document.getElementById(`pkg-btn-save-${pid}`).classList.add('hidden')
+        document.getElementById(`pkg-btn-cancel-${pid}`).classList.add('hidden')
+        document.getElementById(`pkg-input-${pid}`).value = origPrice
+    }
+
+    // 가격 저장 (packages_price + custom_packages 동기화)
+    async function savePkgPrice(pid) {
+        const newPrice = parseInt(document.getElementById(`pkg-input-${pid}`).value)
+        if (isNaN(newPrice) || newPrice < 0) { alert('올바른 가격을 입력해주세요.'); return }
+        const token = localStorage.getItem('token')
+        const customIds = new Set(allCustomPkgs.map(p => p.package_id))
+        try {
+            if (customIds.has(pid)) {
+                // 커스텀 제품: PUT /api/custom-packages/:id
+                const cp = allCustomPkgs.find(p => p.package_id === pid)
+                await axios.put(`/api/custom-packages/${pid}`, {
+                    name: cp.name, fullName: cp.full_name,
+                    description: cp.description, price: newPrice,
+                    imageUrl: cp.image_url, isActive: cp.is_active
+                }, { headers: { Authorization: `Bearer ${token}` } })
+            } else {
+                // 기본 제품: PUT /api/packages/prices/:id
+                await axios.put(`/api/packages/prices/${pid}`, { price: newPrice },
+                    { headers: { Authorization: `Bearer ${token}` } })
+            }
+            document.getElementById(`pkg-display-${pid}`).textContent = `₩${newPrice.toLocaleString('ko-KR')}`
+            cancelPkgEdit(pid, newPrice)
+            await loadAllPrices()
+            renderProductTables()
+            alert('✅ 가격이 수정되었습니다. 즉시 전 지사에 반영됩니다.')
+        } catch(e) {
+            console.error('savePkgPrice:', e)
+            alert('가격 저장 중 오류가 발생했습니다.')
+        }
+    }
+
+    // 표시/숨김 토글
+    async function togglePkgActive(pid) {
+        const cp = allCustomPkgs.find(p => p.package_id === pid)
+        if (!cp) return
+        const token = localStorage.getItem('token')
+        const newActive = cp.is_active === 1 ? 0 : 1
+        try {
+            await axios.put(`/api/custom-packages/${pid}`, {
+                name: cp.name, fullName: cp.full_name,
+                description: cp.description, price: cp.price,
+                imageUrl: cp.image_url, isActive: newActive
+            }, { headers: { Authorization: `Bearer ${token}` } })
+            await loadProductManagement()
+            alert(`✅ ${cp.name} 을(를) ${newActive ? '표시' : '숨김'} 처리했습니다.`)
+        } catch(e) { alert('처리 중 오류가 발생했습니다.') }
+    }
+
+    // 커스텀 제품 삭제
+    async function deleteCustomPkg(pid, name) {
+        if (!confirm(`"${name}" 을(를) 삭제할까요?\n지사 2단계에서 즉시 사라집니다.`)) return
+        const token = localStorage.getItem('token')
+        try {
+            await axios.delete(`/api/custom-packages/${pid}`,
+                { headers: { Authorization: `Bearer ${token}` } })
+            await loadProductManagement()
+            alert('✅ 삭제되었습니다.')
+        } catch(e) { alert('삭제 중 오류가 발생했습니다.') }
+    }
+
+    // 이미지 파일 선택 시 미리보기
+    function previewProductImage(input) {
+        const file = input.files[0]
+        if (!file) return
+        document.getElementById('np-image-label').textContent = file.name
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            const img = document.getElementById('np-image-preview')
+            img.src = e.target.result
+            document.getElementById('np-image-preview-wrap').classList.remove('hidden')
+        }
+        reader.readAsDataURL(file)
+        // 숨김 URL 초기화 (아직 업로드 전)
+        document.getElementById('np-image-url').value = ''
+        document.getElementById('np-image-status').textContent = '제품 등록 시 자동 업로드됩니다.'
+        document.getElementById('np-image-status').classList.remove('hidden')
+    }
+
+    // 신규 제품 등록
+    async function registerPackage() {
+        const brand   = document.getElementById('np-brand').value
+        const name    = document.getElementById('np-name').value.trim()
+        const price   = parseInt(document.getElementById('np-price').value)
+        const desc    = document.getElementById('np-desc').value.trim()
+        const fileInput = document.getElementById('np-image-file')
+
+        if (!name || isNaN(price)) {
+            alert('제품명, 소비자가는 필수입니다.')
+            return
+        }
+        const token = localStorage.getItem('token')
+        let imageUrl = ''
+
+        // 이미지 파일이 있으면 먼저 R2에 업로드
+        if (fileInput.files[0]) {
+            try {
+                document.getElementById('np-image-status').textContent = '이미지 업로드 중...'
+                document.getElementById('np-image-status').classList.remove('hidden')
+                const formData = new FormData()
+                formData.append('image', fileInput.files[0])
+                const uploadRes = await axios.post('/api/upload/product-image', formData, {
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+                })
+                if (uploadRes.data.success) {
+                    imageUrl = uploadRes.data.imageUrl
+                    document.getElementById('np-image-url').value = imageUrl
+                    document.getElementById('np-image-status').textContent = '✅ 이미지 업로드 완료'
+                } else {
+                    document.getElementById('np-image-status').textContent = '⚠️ 이미지 업로드 실패 (제품은 등록됩니다)'
+                }
+            } catch(e) {
+                document.getElementById('np-image-status').textContent = '⚠️ 이미지 업로드 실패 (제품은 등록됩니다)'
+            }
+        }
+
+        try {
+            const res = await axios.post('/api/custom-packages', {
+                brand, name, fullName: name,
+                description: desc, price, imageUrl
+            }, { headers: { Authorization: `Bearer ${token}` } })
+            if (res.data.success) {
+                // 입력 초기화
+                document.getElementById('np-name').value = ''
+                document.getElementById('np-price').value = ''
+                document.getElementById('np-desc').value = ''
+                document.getElementById('np-image-file').value = ''
+                document.getElementById('np-image-label').textContent = '이미지 파일 선택'
+                document.getElementById('np-image-preview-wrap').classList.add('hidden')
+                document.getElementById('np-image-url').value = ''
+                document.getElementById('np-image-status').classList.add('hidden')
+                await loadProductManagement()
+                alert(`✅ "${name}" 이(가) 등록되었습니다!\n즉시 전 지사 2단계에 표시됩니다.`)
+            } else {
+                alert('❌ ' + (res.data.error || '등록 실패'))
+            }
+        } catch(e) {
+            alert('등록 중 오류: ' + (e.response?.data?.error || e.message))
+        }
+    }
+
+    // 하위 호환: 기존 loadPrices, initPrices 함수명 유지 (다른 곳에서 참조 방지)
+    async function loadPrices() { await loadProductManagement() }
+    async function initPrices() { await loadProductManagement() }
+
+</script>
+</body>
+</html>

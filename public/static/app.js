@@ -1,147 +1,523 @@
+// ── axios 전역 인증 헤더 자동 설정 (DOMContentLoaded에서 처리) ──────────────
+
 // 전역 상태 관리
 let currentStep = 1;
-let ocrData = null;
-let selectedPackages = []; // 단일 선택에서 다중 선택으로 변경
+let selectedPackages = [];
 let allPackages = [];
-let packagePositions = {}; // 패키지별 좌/우 선택 상태 저장
-let uploadedImageFile = null; // 업로드된 거래명세서 이미지 파일
-let currentReportId = null; // 현재 편집 중인 리포트 ID
-let allReports = []; // 저장된 모든 리포트 목록
+let packagePositions = {};
+let currentReportId = null;
+let allReports = [];
+let uploadedImageFile = null;
+
+let currentAssignments = [];
+let selectedAssignment = null; // 현재 선택된 접수 건
+
+// ── 악세사리 전역 상태 ──────────────────────────────────────────────────────
+let selectedAccessories = {}; // { 'rubber-strap': 2, 'hook-s': 1, 'hook-l': 3 }
+
+// 악세사리 마스터 데이터
+const ACCESSORIES = [
+  {
+    id: 'rubber-strap',
+    name: '고무스트랩',
+    unit: '1m',
+    unitLabel: 'm',
+    consumerPrice: 20000,   // 소비자가 1m당 2만원
+    costPrice: 8000,        // 원가 (10m=80,000 → 1m=8,000)
+    minQty: 1,
+    maxQty: 50,
+    description: '1m 단위 판매 · 소비자가 ₩20,000/m'
+  },
+  {
+    id: 'hook-s',
+    name: '후크걸이(소)',
+    unit: '1세트(5EA)',
+    unitLabel: '세트',
+    consumerPrice: 20000,   // 소비자가 1세트(5개) = 2만원
+    costPrice: 10000,       // 원가 1세트 = 10,000
+    minQty: 1,
+    maxQty: 20,
+    description: '1세트 = 5EA · 소비자가 ₩20,000/세트'
+  },
+  {
+    id: 'hook-l',
+    name: '후크걸이(대)',
+    unit: '1세트(5EA)',
+    unitLabel: '세트',
+    consumerPrice: 25000,   // 소비자가 1세트(5개) = 2만 5천원
+    costPrice: 10000,       // 원가 1세트 = 10,000
+    minQty: 1,
+    maxQty: 20,
+    description: '1세트 = 5EA · 소비자가 ₩25,000/세트'
+  }
+];
+
+
+// 본사가 특정 지사를 대리 접속할 때 URL에서 branchId 읽기
+// 예: /ocr?viewBranchId=3  → 서울/경북지사 데이터만 표시
+const _urlParams = new URLSearchParams(window.location.search);
+const viewBranchId = _urlParams.get('viewBranchId'); // null 이면 대리 접속 아님
 
 // 초기화
 document.addEventListener('DOMContentLoaded', async () => {
+  // 로그인 토큰 없으면 로그인 페이지로
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/static/login';
+    return;
+  }
+  // axios 헤더 재설정 (토큰 보장)
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+  // 헤더 유저 정보 + 로그아웃 버튼 렌더링
+  try {
+    const userStr = localStorage.getItem('user');
+    const userObj = userStr ? JSON.parse(userStr) : {};
+    const displayName = (userObj.branchName || '') + (userObj.username ? ' - ' + userObj.username : '');
+    const headerArea = document.getElementById('headerUserArea');
+    if (headerArea) {
+      const isHQ = (userObj.role === 'head');
+      const isMobile = window.innerWidth < 768;
+      headerArea.innerHTML = `
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:16px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.15);">
+          <i class="fas fa-user-circle" style="color:#6366f1;font-size:0.9rem;"></i>
+          <span style="color:#4f46e5;font-size:${isMobile?'0.7rem':'0.8rem'};font-weight:600;max-width:${isMobile?'70px':'none'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span>
+        </div>
+        ${isHQ ? `
+        <button id="headerHomeBtn"
+          onclick="window.location.href='/static/launcher'"
+          style="display:flex;align-items:center;gap:4px;padding:5px ${isMobile?'10px':'14px'};border-radius:16px;font-size:${isMobile?'0.72rem':'0.8rem'};font-weight:600;color:#6366f1;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);cursor:pointer;transition:all 0.2s;"
+          onmouseover="this.style.background='rgba(99,102,241,0.16)';this.style.borderColor='rgba(99,102,241,0.4)'"
+          onmouseout="this.style.background='rgba(99,102,241,0.07)';this.style.borderColor='rgba(99,102,241,0.2)'">
+          <i class="fas fa-home"></i>${isMobile?'':' 홈'}
+        </button>` : ''}
+        <button id="headerLogoutBtn"
+          style="display:flex;align-items:center;gap:4px;padding:5px ${isMobile?'10px':'14px'};border-radius:16px;font-size:${isMobile?'0.72rem':'0.8rem'};font-weight:600;color:#ef4444;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);cursor:pointer;transition:all 0.2s;"
+          onmouseover="this.style.background='rgba(239,68,68,0.14)';this.style.borderColor='rgba(239,68,68,0.4)'"
+          onmouseout="this.style.background='rgba(239,68,68,0.07)';this.style.borderColor='rgba(239,68,68,0.2)'">
+          <i class="fas fa-sign-out-alt"></i>${isMobile?'':' 로그아웃'}
+        </button>`;
+      document.getElementById('headerLogoutBtn').addEventListener('click', async () => {
+        try { await axios.post('/api/auth/logout'); } catch(e) {}
+        localStorage.removeItem('pv5_reports');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/static/login';
+      });
+    }
+  } catch(e) { console.warn('Header user render error:', e); }
+
   await loadPackages();
-  setupFileUpload();
   setupStepNavigation();
   updateStepIndicator();
-  
-  // 페이지 로드 시 밀워키 패키지 미리 준비 (Step 2 진입 시 즉시 표시)
-  setTimeout(() => {
-    if (allPackages.length > 0) {
-      console.log('Preloading milwaukee packages for faster display');
+
+  // 지사 계정이면 데이터 가져오기 + 데이터 초기화 버튼 숨김
+  try {
+    const _userObj = JSON.parse(localStorage.getItem('user') || '{}');
+    if (_userObj.role === 'branch') {
+      const _btnImport = document.getElementById('btnImportData');
+      const _btnReset = document.getElementById('btnResetData');
+      if (_btnImport) _btnImport.style.display = 'none';
+      if (_btnReset) _btnReset.style.display = 'none';
     }
-  }, 1000);
+  } catch(e) {}
+
+  // 1단계: 토큰 기반으로 해당 지사 배정 목록만 렌더링
+  await renderStep1AssignmentList();
 });
 
-// 단계 네비게이션 설정 (상단 메뉴 클릭)
-function setupStepNavigation() {
-  for (let i = 1; i <= 5; i++) {
-    const stepElement = document.getElementById(`step${i}`);
-    if (stepElement) {
-      stepElement.style.cursor = 'pointer';
-      stepElement.addEventListener('click', () => goToStep(i));
+// ═══════════════════════════════════════════════════════════════
+// STEP 1 — 배정 목록 렌더링
+// ★ localStorage의 user를 믿지 않고, 서버 verify로 role을 직접 확인
+// ═══════════════════════════════════════════════════════════════
+async function renderStep1AssignmentList() {
+  const container = document.getElementById('upload-section');
+  if (!container) return;
+
+  // 토큰 확인
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/static/login';
+    return;
+  }
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+  // 로딩 표시
+  container.innerHTML = `
+    <div class="text-center py-12 text-gray-400">
+      <i class="fas fa-spinner fa-spin text-4xl mb-3 block"></i>
+      <p>배정 목록을 불러오는 중...</p>
+    </div>`;
+
+  try {
+    // ★ 핵심: 서버에서 토큰을 직접 검증하여 실제 role/branchId 확인
+    //   localStorage.user는 이전 세션 데이터일 수 있으므로 절대 신뢰하지 않음
+    const verifyRes = await axios.get('/api/auth/verify');
+    if (!verifyRes.data.success) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/static/login';
+      return;
     }
+
+    // 서버에서 확인된 실제 사용자 정보로 localStorage 갱신
+    const serverUser = verifyRes.data.user;
+    localStorage.setItem('user', JSON.stringify(serverUser));
+    console.log('[접수목록] 서버 검증 role:', serverUser.role, '| branchId:', serverUser.branchId);
+
+    // 서버 검증된 role 기준으로 판단
+    // 본사가 특정 지사를 대리 접속(viewBranchId 있음): 해당 지사 배정 목록 표시
+    // 본사가 직접 접속(viewBranchId 없음): 본사 안내 메시지
+    if (serverUser.role === 'head' && !viewBranchId) {
+      container.innerHTML = `
+        <div class="text-center py-16 text-gray-400">
+          <i class="fas fa-building text-6xl mb-4 block text-blue-300"></i>
+          <p class="text-lg font-semibold text-gray-700">본사 관리자 계정입니다</p>
+          <p class="text-sm mt-2">본사 접수 관리는 <a href="/static/hq" class="text-blue-600 underline font-semibold">본사 관리 시스템</a>을 이용해주세요.</p>
+        </div>`;
+      return;
+    }
+
+    // 지사 계정 또는 본사 대리 접속: 해당 지사 배정 목록 조회
+    // 본사 대리 접속 시 branchId 파라미터 전달
+    const assignmentsUrl = (serverUser.role === 'head' && viewBranchId)
+      ? `/api/assignments?branchId=${viewBranchId}`
+      : '/api/assignments/my';
+    const res = await axios.get(assignmentsUrl);
+    console.log('[접수목록] API 응답:', res.data.assignments?.length, '건');
+    if (!res.data.success) throw new Error(res.data.error || 'API 실패');
+
+    currentAssignments = res.data.assignments || [];
+    renderAssignmentCards(container, currentAssignments);
+
+  } catch(e) {
+    console.error('renderStep1 error:', e);
+    if (e.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/static/login';
+      return;
+    }
+    container.innerHTML = `
+      <div class="text-center py-12 text-red-400">
+        <i class="fas fa-exclamation-circle text-4xl mb-3 block"></i>
+        <p>배정 목록을 불러오지 못했습니다.</p>
+        <p class="text-sm mt-1 text-gray-400">${e.message || ''}</p>
+        <button onclick="renderStep1AssignmentList()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">다시 시도</button>
+      </div>`;
   }
 }
 
-// 특정 단계로 이동 (클릭 시)
+function renderAssignmentCards(container, list) {
+  const statusLabel = { assigned:'접수됨', in_progress:'진행 중', completed:'완료' };
+  const statusStyle = {
+    assigned:    'bg-blue-100 text-blue-700',
+    in_progress: 'bg-yellow-100 text-yellow-700',
+    completed:   'bg-green-100 text-green-700'
+  };
+
+  // 헤더
+  const token = localStorage.getItem('token');
+  let branchName = '';
+  try { branchName = JSON.parse(localStorage.getItem('user') || '{}').branchName || ''; } catch(e) {}
+
+  // ★ pending: 아직 report 작업 미시작인 건만 (assigned만)
+  //   in_progress/adjusting/confirmed/inst_confirmed → 5단계에 저장됨 → 1단계 대기에서 숨김
+  // ★ completed: 시공 완료 건만 하단에 표시
+  const pending   = list.filter(a => a.status === 'assigned');
+  const inProgress = list.filter(a => ['adjusting','in_progress','confirmed','inst_confirmed'].includes(a.status));
+  const completed = list.filter(a => a.status === 'completed');
+
+  if (pending.length === 0 && inProgress.length === 0 && completed.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-16 text-gray-400">
+        <i class="fas fa-inbox text-6xl mb-4 block"></i>
+        <p class="text-lg font-semibold">배정된 접수 건이 없습니다</p>
+        <p class="text-sm mt-1">본사에서 접수를 등록하면 여기에 표시됩니다.</p>
+      </div>`;
+    return;
+  }
+
+  const makeCard = (a) => {
+    const isDone = a.status === 'completed';
+    const btnHtml = isDone
+      ? `<span class="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-semibold"><i class="fas fa-check mr-1"></i>완료됨</span>`
+      : `<button onclick="startAssignment('${a.assignment_id}')" 
+               class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm">
+           <i class="fas fa-play mr-1.5"></i>${a.status === 'in_progress' ? '이어하기' : '시작하기'}
+         </button>`;
+
+    return `
+      <div class="border ${isDone ? 'border-gray-200 bg-gray-50 opacity-70' : 'border-blue-200 bg-white hover:shadow-md'} rounded-xl p-5 transition">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="font-bold text-gray-800 text-lg">${a.customer_name}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusStyle[a.status] || 'bg-gray-100 text-gray-600'}">
+                ${statusLabel[a.status] || a.status}
+              </span>
+            </div>
+            <div class="space-y-1 text-sm text-gray-600">
+              <div><i class="fas fa-phone w-4 mr-1.5 text-gray-400"></i>${a.customer_phone || '-'}</div>
+              <div><i class="fas fa-map-marker-alt w-4 mr-1.5 text-gray-400"></i>${a.customer_address || '-'}</div>
+              ${a.product_name ? `<div><i class="fas fa-box w-4 mr-1.5 text-gray-400"></i>${a.product_name}</div>` : ''}
+              ${a.notes ? `<div><i class="fas fa-sticky-note w-4 mr-1.5 text-gray-400"></i>${a.notes}</div>` : ''}
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            <span class="text-xs text-gray-400">${a.order_date || (a.assigned_at||'').split('T')[0] || ''}</span>
+            ${btnHtml}
+          </div>
+        </div>
+      </div>`;
+  };
+
+  container.innerHTML = `
+    <div class="mb-4 flex items-center justify-between gap-2 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap">
+        <i class="fas fa-clipboard-list text-blue-500" style="font-size:1.1rem;"></i>
+        <span class="font-bold text-gray-700" style="font-size:1rem;white-space:nowrap;">배정된 접수 목록</span>
+        <span class="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-semibold" style="white-space:nowrap;">${pending.length}건 대기</span>
+      </div>
+      <button onclick="renderStep1AssignmentList()" class="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-blue-300 transition" style="white-space:nowrap;">
+        <i class="fas fa-sync-alt"></i> 새로고침
+      </button>
+    </div>
+    <div class="space-y-3">
+      ${pending.length === 0 ? '<p class="text-sm text-gray-400 py-2"><i class="fas fa-check-circle mr-1 text-green-400"></i>대기 중인 접수가 없습니다.</p>' : pending.map(makeCard).join('')}
+      ${inProgress.length > 0 ? `
+        <details class="mt-4" open>
+          <summary class="cursor-pointer text-sm text-indigo-500 font-semibold hover:text-indigo-700 select-none py-1">
+            <i class="fas fa-spinner mr-1"></i>진행 중인 건 ${inProgress.length}건 (이어하기로 계속 진행)
+          </summary>
+          <div class="space-y-3 mt-3">${inProgress.map(makeCard).join('')}</div>
+        </details>` : ''}
+      ${completed.length > 0 ? `
+        <details class="mt-4">
+          <summary class="cursor-pointer text-sm text-gray-400 hover:text-gray-600 select-none py-1">
+            <i class="fas fa-chevron-right mr-1"></i>완료된 건 ${completed.length}건 보기
+          </summary>
+          <div class="space-y-3 mt-3">${completed.map(makeCard).join('')}</div>
+        </details>` : ''}
+    </div>`;
+}
+
+// 시작하기 버튼 → 2단계로 이동 + 고객 정보 자동 채우기
+async function startAssignment(assignmentId) {
+  const a = currentAssignments.find(x => x.assignment_id === assignmentId);
+  if (!a) return;
+
+  selectedAssignment = a;
+  console.log('[startAssignment] assignment selected:', assignmentId, 'current status:', a.status);
+
+  // ── 이어하기: 이 assignment에 연결된 draft/진행중 보고서 자동 복원 ──
+  try {
+    // 1) 로컬 캐시에서 먼저 탐색
+    const localReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+    let draftReport = localReports.find(r =>
+      (r.assignment_id === assignmentId || r.assignmentId === assignmentId ||
+       r.customerInfo?.assignmentId === assignmentId) &&
+      r.status !== 'completed'
+    );
+
+    // 2) 로컬에 없으면 서버에서 조회
+    if (!draftReport) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`/api/reports/list`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000
+        });
+        if (res.data.success) {
+          draftReport = res.data.reports.find(r =>
+            (r.assignment_id === assignmentId || r.assignmentId === assignmentId ||
+             r.customerInfo?.assignmentId === assignmentId) &&
+            r.status !== 'completed'
+          );
+        }
+      } catch(e) {
+        console.warn('[startAssignment] server report lookup failed:', e);
+      }
+    }
+
+    if (draftReport) {
+      // ── draft 복원 ──
+      const reportId = draftReport.report_id || draftReport.reportId || draftReport.id;
+      console.log('[startAssignment] draft found, restoring:', reportId, 'status:', draftReport.status);
+
+      currentReportId = reportId;
+      ocrData         = draftReport.customerInfo || draftReport.customer_info || {};
+      selectedPackages = draftReport.packages || [];
+      if (typeof ocrData === 'string') { try { ocrData = JSON.parse(ocrData); } catch(e) { ocrData = {}; } }
+
+      // 패키지가 문자열로 저장된 경우 파싱
+      if (typeof selectedPackages === 'string') {
+        try { selectedPackages = JSON.parse(selectedPackages); } catch(e) { selectedPackages = []; }
+      }
+
+      // 악세사리 복원
+      if (draftReport.accessories) {
+        try {
+          const acc = typeof draftReport.accessories === 'string'
+            ? JSON.parse(draftReport.accessories) : draftReport.accessories;
+          if (acc && typeof acc === 'object') selectedAccessories = acc;
+        } catch(e) {}
+      }
+
+      // 입력 필드 복원 (setTimeout으로 DOM 준비 후)
+      setTimeout(() => {
+        if (draftReport.installDate)    { const el = document.getElementById('installDate');    if (el) el.value = draftReport.installDate; }
+        if (draftReport.installTime)    { const el = document.getElementById('installTime');    if (el) el.value = draftReport.installTime; }
+        if (draftReport.installAddress) { const el = document.getElementById('installAddress'); if (el) el.value = draftReport.installAddress; }
+        if (draftReport.notes)          { const el = document.getElementById('notes');          if (el) el.value = draftReport.notes; }
+        if (draftReport.installerName)  { const el = document.getElementById('installerName'); if (el) el.value = draftReport.installerName; }
+        // 고객정보
+        const name = ocrData.receiverName || a.customer_name || '';
+        const phone = ocrData.receiverPhone || a.customer_phone || '';
+        const addr = draftReport.installAddress || ocrData.receiverAddress || a.customer_address || '';
+        const nameEl = document.getElementById('customerName');
+        const phoneEl = document.getElementById('customerPhone');
+        const addrEl  = document.getElementById('installAddress');
+        if (nameEl)  nameEl.value  = name;
+        if (phoneEl) phoneEl.value = phone;
+        if (addrEl && addrEl.value === '') addrEl.value = addr;
+      }, 300);
+
+      // ── 마지막 작업 단계로 이동 ──
+      // 설치날짜까지 있으면 → 3단계, 제품선택만 있으면 → 2단계
+      const hasPackages = selectedPackages && selectedPackages.length > 0;
+      const hasInstallDate = !!(draftReport.installDate);
+      const targetStep = hasInstallDate ? 3 : (hasPackages ? 2 : 2);
+
+      currentStep = targetStep;
+      updateStepIndicator();
+      showCurrentSection();
+
+      if (targetStep === 2 || targetStep === 3) {
+        setTimeout(() => {
+          if (allPackages.length === 0) {
+            loadPackages().then(() => {
+              // 선택된 제품 브랜드로 탭 이동
+              const brand = selectedPackages[0]?.brand || 'milwaukee';
+              showBrand(brand);
+              if (targetStep === 2) displayPackages(brand);
+            });
+          } else {
+            const brand = selectedPackages[0]?.brand || 'milwaukee';
+            showBrand(brand);
+            if (targetStep === 2) displayPackages(brand);
+          }
+        }, 200);
+      }
+      return; // draft 복원 완료, 이하 기존 로직 건너뜀
+    }
+  } catch(e) {
+    console.warn('[startAssignment] draft restore failed, fallback to normal flow:', e);
+  }
+
+  // ── draft 없음: 기존 로직 그대로 (2단계 처음부터) ──
+  // 3단계 고객정보 자동 채우기
+  setTimeout(() => {
+    const nameEl    = document.getElementById('customerName');
+    const phoneEl   = document.getElementById('customerPhone');
+    const addressEl = document.getElementById('installAddress');
+    if (nameEl)    nameEl.value    = a.customer_name    || '';
+    if (phoneEl)   phoneEl.value   = a.customer_phone   || '';
+    if (addressEl) addressEl.value = a.customer_address || '';
+  }, 300);
+
+  // 2단계로 이동
+  currentStep = 2;
+  updateStepIndicator();
+  showCurrentSection();
+  setTimeout(() => {
+    if (allPackages.length === 0) loadPackages().then(() => showBrand('milwaukee'));
+    else showBrand('milwaukee');
+  }, 200);
+}
+
+// 단계 네비게이션 설정
+function setupStepNavigation() {
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (el) { el.style.cursor = 'pointer'; el.addEventListener('click', () => goToStep(i)); }
+  }
+}
+
+// 특정 단계로 이동
 function goToStep(step) {
-  // 이전 단계로만 이동 가능 (완료된 단계)
   if (step < currentStep) {
+    // 1단계로 돌아갈 때 목록 새로고침
+    if (step === 1) renderStep1AssignmentList();
     currentStep = step;
     updateStepIndicator();
     showCurrentSection();
-    
-    // 섹션별 초기화
-    if (step === 2) {
-      setTimeout(() => {
-        if (allPackages.length === 0) {
-          console.error('No packages loaded, retrying...');
-          loadPackages().then(() => {
-            showBrand('milwaukee');
-          });
-        } else {
-          showBrand('milwaukee');
-        }
-      }, 200);
-    }
+    if (step === 2) setTimeout(() => showBrand('milwaukee'), 200);
     return;
   }
-  
-  // 현재 단계는 그냥 머물기
-  if (step === currentStep) {
-    return;
-  }
-  
-  // 다음 단계로 이동 시도
+  if (step === currentStep) return;
+
   if (step === 2) {
-    if (!ocrData) {
-      alert('먼저 거래명세서를 업로드하거나 수동으로 입력해주세요.');
-      return;
-    }
-    currentStep = 2;
-    updateStepIndicator();
-    showCurrentSection();
+    if (!selectedAssignment && !currentReportId) { alert('접수 목록에서 항목을 선택해주세요.'); return; }
+    currentStep = 2; updateStepIndicator(); showCurrentSection();
     setTimeout(() => {
-      if (allPackages.length === 0) {
-        console.error('No packages loaded, retrying...');
-        loadPackages().then(() => {
-          showBrand('milwaukee');
-        });
-      } else {
-        showBrand('milwaukee');
-      }
+      if (allPackages.length === 0) loadPackages().then(() => showBrand('milwaukee'));
+      else showBrand('milwaukee');
     }, 200);
   } else if (step === 3) {
-    if (!ocrData) {
-      alert('먼저 거래명세서를 업로드하거나 수동으로 입력해주세요.');
-      return;
-    }
-    if (selectedPackages.length === 0) {
-      alert('제품을 선택해주세요.');
-      return;
-    }
-    currentStep = 3;
-    updateStepIndicator();
-    showCurrentSection();
-    // OCR 데이터로 주소 자동 입력
-    if (ocrData && ocrData.address) {
-      document.getElementById('installAddress').value = ocrData.address;
+    if (!selectedAssignment && !currentReportId) { alert('접수 목록에서 항목을 선택해주세요.'); return; }
+    if (selectedPackages.length === 0) { alert('제품을 선택해주세요.'); return; }
+    currentStep = 3; updateStepIndicator(); showCurrentSection();
+    // 주소 자동 채우기
+    if (selectedAssignment?.customer_address) {
+      const el = document.getElementById('installAddress');
+      if (el && !el.value) el.value = selectedAssignment.customer_address;
     }
   } else if (step === 4) {
-    if (!ocrData) {
-      alert('먼저 거래명세서를 업로드하거나 수동으로 입력해주세요.');
-      return;
-    }
-    if (selectedPackages.length === 0) {
-      alert('제품을 선택해주세요.');
-      return;
-    }
+    if (selectedPackages.length === 0) { alert('제품을 선택해주세요.'); return; }
     const installDate = document.getElementById('installDate')?.value;
-    if (!installDate) {
-      alert('설치 날짜를 입력해주세요.');
-      return;
-    }
-    currentStep = 4;
-    updateStepIndicator();
-    showCurrentSection();
+    if (!installDate) { alert('설치 날짜를 입력해주세요.'); return; }
+    currentStep = 4; updateStepIndicator(); showCurrentSection();
     displayFinalPreview();
-  } else if (step === 5) {
-    // Step 5는 언제든지 접근 가능
-    currentStep = 5;
-    updateStepIndicator();
-    showCurrentSection();
-  } else if (step === 6) {
-    // Step 6 매출 관리는 언제든지 접근 가능
-    currentStep = 6;
-    updateStepIndicator();
-    showCurrentSection();
+  } else if (step === 5 || step === 6 || step === 7) {
+    currentStep = step; updateStepIndicator(); showCurrentSection();
   }
 }
 
 // 제품 패키지 로드
 async function loadPackages() {
   try {
+    // 1. 패키지 기본 정보 로드
     const response = await axios.get('/api/packages');
     allPackages = response.data.packages;
     console.log('Loaded packages:', allPackages.length);
+
+    // 2. DB 가격 조회 후 병합 (본사 설정 가격 우선 적용)
+    try {
+      const priceRes = await axios.get('/api/packages/prices');
+      if (priceRes.data.success && priceRes.data.prices && priceRes.data.prices.length > 0) {
+        const priceMap = {};
+        priceRes.data.prices.forEach(p => { priceMap[p.package_id] = p.price; });
+        allPackages = allPackages.map(pkg => {
+          if (priceMap[pkg.id] !== undefined) {
+            return { ...pkg, price: priceMap[pkg.id] };
+          }
+          return pkg;
+        });
+        console.log('DB 가격 적용 완료');
+      }
+    } catch (priceErr) {
+      console.warn('DB 가격 조회 실패, 기본 가격 사용:', priceErr.message);
+    }
   } catch (error) {
     console.error('Failed to load packages:', error);
     alert('제품 정보를 불러오는데 실패했습니다.');
   }
 }
 
-// 파일 업로드 설정
+// ── OCR 관련 함수 제거됨 (본사 → 지사 직접 배정 방식으로 변경) ──────────────
+
+// 파일 업로드 설정 (미사용 - 하위 호환 유지용 stub)
 function setupFileUpload() {
   const fileInput = document.getElementById('fileInput');
   const dropZone = document.getElementById('dropZone');
@@ -644,9 +1020,91 @@ function submitManualInput() {
 }
 
 
-// 브랜드별 제품 표시
-function showBrand(brand) {
-  console.log('showBrand called with:', brand);
+// ── 악세사리 관련 함수 ──────────────────────────────────────────────────────
+
+// 악세사리 카드 렌더링 (2단계 packageGrid 아래)
+function renderAccessories() {
+  const grid = document.getElementById('accessoryGrid');
+  if (!grid) return;
+
+  grid.innerHTML = ACCESSORIES.map(acc => {
+    const qty = selectedAccessories[acc.id] || 0;
+    const isSelected = qty > 0;
+    return `
+      <div style="border: 2px solid ${isSelected ? '#f97316' : '#e2e8f0'}; border-radius: 0.75rem; padding: 1.25rem; background: ${isSelected ? '#fff7ed' : 'white'}; transition: all 0.2s;" id="acc-card-${acc.id}">
+        <div style="margin-bottom: 0.75rem;">
+          <p style="font-weight: 700; font-size: 1rem; color: #1a202c; margin-bottom: 0.25rem;">${acc.name}</p>
+          <p style="font-size: 0.75rem; color: #f97316; font-weight: 600;">₩${acc.consumerPrice.toLocaleString('ko-KR')} / ${acc.unitLabel}</p>
+          <p style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.2rem;">${acc.description}</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <button onclick="changeAccessoryQty('${acc.id}', -1)"
+                  style="width: 2rem; height: 2rem; border-radius: 50%; border: 2px solid #e2e8f0; background: white; font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #374151;"
+                  onmouseover="this.style.borderColor='#f97316';this.style.color='#f97316'"
+                  onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#374151'">−</button>
+          <input type="number" id="acc-qty-${acc.id}" value="${qty}" min="0" max="${acc.maxQty}"
+                 onchange="setAccessoryQty('${acc.id}', parseInt(this.value)||0)"
+                 style="width: 3.5rem; text-align: center; border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.25rem; font-size: 0.9rem; font-weight: 700; color: #1a202c;">
+          <button onclick="changeAccessoryQty('${acc.id}', +1)"
+                  style="width: 2rem; height: 2rem; border-radius: 50%; border: 2px solid #e2e8f0; background: white; font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #374151;"
+                  onmouseover="this.style.borderColor='#f97316';this.style.color='#f97316'"
+                  onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#374151'">＋</button>
+          <span style="font-size: 0.8rem; color: #6b7280;">${acc.unitLabel}</span>
+          ${isSelected ? `<span style="font-size: 0.75rem; color: #f97316; font-weight: 600; margin-left: auto;">합계 ₩${(qty * acc.consumerPrice).toLocaleString('ko-KR')}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 악세사리 수량 ±1 버튼
+function changeAccessoryQty(accId, delta) {
+  const acc = ACCESSORIES.find(a => a.id === accId);
+  if (!acc) return;
+  const current = selectedAccessories[accId] || 0;
+  const newQty = Math.max(0, Math.min(acc.maxQty, current + delta));
+  setAccessoryQty(accId, newQty);
+}
+
+// 악세사리 수량 직접 설정
+function setAccessoryQty(accId, qty) {
+  qty = Math.max(0, qty);
+  if (qty === 0) {
+    delete selectedAccessories[accId];
+  } else {
+    selectedAccessories[accId] = qty;
+  }
+  renderAccessories();
+}
+
+// 악세사리 초기화 (새 문서 시작 시)
+function resetAccessories() {
+  selectedAccessories = {};
+  renderAccessories();
+}
+
+// 선택된 악세사리 목록 텍스트 (4단계 확인서용)
+function getAccessorySummary() {
+  const items = Object.entries(selectedAccessories)
+    .map(([id, qty]) => {
+      const acc = ACCESSORIES.find(a => a.id === id);
+      if (!acc) return null;
+      return `${acc.name} × ${qty}${acc.unitLabel} (₩${(qty * acc.consumerPrice).toLocaleString('ko-KR')})`;
+    })
+    .filter(Boolean);
+  return items.length > 0 ? items.join(', ') : '없음';
+}
+
+// 악세사리 총 소비자가 합계
+function getAccessoryTotalPrice() {
+  return Object.entries(selectedAccessories).reduce((sum, [id, qty]) => {
+    const acc = ACCESSORIES.find(a => a.id === id);
+    return sum + (acc ? acc.consumerPrice * qty : 0);
+  }, 0);
+}
+
+// ── 브랜드별 제품 표시
+function showBrand(brand) {  console.log('showBrand called with:', brand);
   console.log('allPackages:', allPackages.length);
   
   const tabs = document.querySelectorAll('.brand-tab');
@@ -763,19 +1221,19 @@ function selectPackage(packageId) {
   displayPackages(packages);
 }
 
-// 고객 주소 복사 // UPDATED
-function copyCustomerAddress() { // UPDATED
-  if (!ocrData || !ocrData.receiverAddress) { // UPDATED
-    alert('⚠️ 고객 주소 정보가 없습니다. 먼저 거래명세서를 업로드해주세요.'); // UPDATED
-    return; // UPDATED
-  } // UPDATED
-  // UPDATED
-  const installAddressInput = document.getElementById('installAddress'); // UPDATED
-  if (installAddressInput) { // UPDATED
-    installAddressInput.value = ocrData.receiverAddress; // UPDATED
-    alert('✅ 고객 주소가 복사되었습니다!'); // UPDATED
-  } // UPDATED
-} // UPDATED
+// 고객 주소 복사 (접수 정보에서 가져오기)
+function copyCustomerAddress() {
+  const addr = selectedAssignment?.customer_address;
+  if (!addr) {
+    alert('⚠️ 고객 주소 정보가 없습니다.');
+    return;
+  }
+  const el = document.getElementById('installAddress');
+  if (el) {
+    el.value = addr;
+    alert('✅ 고객 주소가 복사되었습니다!');
+  }
+}
 
 // 설치 시간 선택 - 오전/오후 // UPDATED
 let selectedTimePeriod = ''; // UPDATED
@@ -904,51 +1362,45 @@ function applyCustomTime() { // UPDATED
 // 단계 이동
 function nextStep(step) {
   // 유효성 검사
-  if (step === 2 && !ocrData) {
-    alert('먼저 거래명세서를 업로드해주세요.');
+  if (step === 2 && !selectedAssignment && !currentReportId) {
+    alert('접수 목록에서 항목을 선택해주세요.');
     return;
   }
-  
+
   if (step === 3 && selectedPackages.length === 0) {
     alert('제품을 선택해주세요.');
     return;
   }
-  
-  if (step === 4) {
-    const installDate = document.getElementById('installDate').value;
-    if (!installDate) {
-      alert('설치 날짜를 입력해주세요.');
-      return;
-    }
-  }
-  
+
+  // step 4: 날짜 없어도 4단계(최종 확인)로 진입 가능 (임시 저장 후 날짜 조율)
+
   currentStep = step;
   updateStepIndicator();
   showCurrentSection();
-  
+
   // 섹션별 초기화
   if (step === 2) {
-    console.log('Moving to step 2, showing milwaukee packages');
-    // 밀워키를 기본으로 표시
     setTimeout(() => {
       if (allPackages.length === 0) {
-        console.error('No packages loaded, retrying...');
         loadPackages().then(() => {
           showBrand('milwaukee');
+          renderAccessories();
         });
       } else {
         showBrand('milwaukee');
+        renderAccessories();
       }
     }, 200);
   }
-  
+
   if (step === 3) {
-    // OCR 데이터로 주소 자동 입력
-    if (ocrData && ocrData.address) {
-      document.getElementById('installAddress').value = ocrData.address;
+    // 접수 정보로 주소 자동 채우기
+    if (selectedAssignment?.customer_address) {
+      const el = document.getElementById('installAddress');
+      if (el && !el.value) el.value = selectedAssignment.customer_address;
     }
   }
-  
+
   if (step === 4) {
     displayFinalPreview();
   }
@@ -962,7 +1414,7 @@ function prevStep(step) {
 
 // 단계 표시기 업데이트
 function updateStepIndicator() {
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= 7; i++) {
     const step = document.getElementById(`step${i}`);
     if (step) {
       step.classList.remove('active', 'completed');
@@ -984,7 +1436,19 @@ function showCurrentSection() {
   document.getElementById('confirm-section').classList.toggle('hidden', currentStep !== 4);
   document.getElementById('manage-section').classList.toggle('hidden', currentStep !== 5);
   document.getElementById('revenue-section')?.classList.toggle('hidden', currentStep !== 6);
-  
+  document.getElementById('settlement-section')?.classList.toggle('hidden', currentStep !== 7);
+  if (currentStep === 7) loadSettlementList();
+
+  // Step 2 진입 시 악세사리 항상 렌더링
+  if (currentStep === 2) {
+    setTimeout(() => renderAccessories(), 300);
+  }
+
+  // Step 1 진입 시 서버에서 최신 목록 새로고침 (상태 변경 반영)
+  if (currentStep === 1) {
+    renderStep1AssignmentList();
+  }
+
   // Step 5 진입 시 목록 로드
   if (currentStep === 5) {
     enterStep5();
@@ -1051,12 +1515,12 @@ function displayFinalPreview() {
           <i class="fas fa-user mr-2 text-blue-600"></i>고객 정보
         </h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div><strong>출력일자:</strong> ${ocrData?.outputDate || '-'}</div>
-          <div><strong>상품번호:</strong> ${ocrData?.productCode || '-'}</div>
-          <div><strong>고객명:</strong> ${ocrData?.receiverName || '-'}</div>
-          <div><strong>연락처:</strong> ${ocrData?.receiverPhone || '-'}</div>
-          <div class="sm:col-span-2"><strong>주소:</strong> ${ocrData?.receiverAddress || '-'}</div>
-          <div><strong>주문번호:</strong> ${ocrData?.orderNumber || '-'}</div>
+          <div><strong>접수일자:</strong> ${selectedAssignment?.order_date || ocrData?.orderDate || '-'}</div>
+          <div><strong>상품명:</strong> ${selectedAssignment?.product_name || ocrData?.productName || selectedPackages.map(p => p.name || p.fullName).filter(Boolean).join(', ') || '-'}</div>
+          <div><strong>고객명:</strong> ${selectedAssignment?.customer_name || document.getElementById('customerName')?.value || '-'}</div>
+          <div><strong>연락처:</strong> ${selectedAssignment?.customer_phone || document.getElementById('customerPhone')?.value || '-'}</div>
+          <div class="sm:col-span-2"><strong>주소:</strong> ${selectedAssignment?.customer_address || document.getElementById('installAddress')?.value || '-'}</div>
+          <div><strong>접수번호:</strong> ${selectedAssignment?.assignment_id || '-'}</div>
         </div>
       </div>
       
@@ -1102,6 +1566,41 @@ function displayFinalPreview() {
         </div>
       </div>
       
+      <!-- 악세사리 정보 -->
+      ${Object.keys(selectedAccessories).length > 0 ? `
+      <div class="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b-2">
+        <h4 class="font-bold text-base sm:text-lg mb-3 text-gray-800">
+          <i class="fas fa-puzzle-piece mr-2 text-orange-500"></i>악세사리 추가 선택
+        </h4>
+        <table class="w-full text-sm">
+          <thead class="bg-orange-50">
+            <tr>
+              <th class="px-3 py-2 text-left">품목</th>
+              <th class="px-3 py-2 text-center">수량</th>
+              <th class="px-3 py-2 text-right">단가</th>
+              <th class="px-3 py-2 text-right">소계</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(selectedAccessories).map(([id, qty]) => {
+              const acc = ACCESSORIES.find(a => a.id === id);
+              if (!acc) return '';
+              return `<tr class="border-b">
+                <td class="px-3 py-2">${acc.name}</td>
+                <td class="px-3 py-2 text-center">${qty}${acc.unitLabel}</td>
+                <td class="px-3 py-2 text-right">₩${acc.consumerPrice.toLocaleString('ko-KR')}</td>
+                <td class="px-3 py-2 text-right font-semibold text-orange-600">₩${(acc.consumerPrice * qty).toLocaleString('ko-KR')}</td>
+              </tr>`;
+            }).join('')}
+            <tr class="bg-orange-50 font-bold">
+              <td colspan="3" class="px-3 py-2 text-right">악세사리 합계</td>
+              <td class="px-3 py-2 text-right text-orange-600">₩${getAccessoryTotalPrice().toLocaleString('ko-KR')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
       <!-- 자재 리스트 -->
       <div class="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b-2">
         <h4 class="font-bold text-base sm:text-lg mb-3 text-gray-800">
@@ -1213,8 +1712,20 @@ async function sendEmail() {
     
     const emailData = {
       recipientEmail,
-      customerInfo: ocrData,
+      customerInfo: selectedAssignment ? {
+        receiverName:    selectedAssignment.customer_name,
+        receiverPhone:   selectedAssignment.customer_phone,
+        receiverAddress: selectedAssignment.customer_address,
+        productName:     selectedAssignment.product_name,
+        assignmentId:    selectedAssignment.assignment_id,
+        orderDate:       selectedAssignment.order_date
+      } : {},
       packages: selectedPackages,
+      accessories: Object.entries(selectedAccessories).map(([id, qty]) => {
+        const acc = ACCESSORIES.find(a => a.id === id);
+        return acc ? { name: acc.name, qty, unitLabel: acc.unitLabel, consumerPrice: acc.consumerPrice, subtotal: acc.consumerPrice * qty } : null;
+      }).filter(Boolean),
+      accessoryTotal: getAccessoryTotalPrice(),
       installDate,
       installTime,
       installAddress,
@@ -1280,7 +1791,12 @@ window.addEventListener('afterprint', () => {
 // ==================== Step 5: 저장 문서 관리 ====================
 
 // 임시 저장 (Step 3에서 날짜 없이 저장)
+let isSavingDraft = false;
+
 async function saveDraftReport() {
+  if (isSavingDraft) return;
+  isSavingDraft = true;
+  setBtnLoading('saveDraftBtn', true);
   try {
     const installerName = document.getElementById('installerName')?.value || '';
     const installDate = document.getElementById('installDate')?.value || ''; // 빈 값 허용
@@ -1312,17 +1828,24 @@ async function saveDraftReport() {
     
     const reportData = {
       reportId: currentReportId || `REPORT-${Date.now()}`,
-      customerInfo: ocrData,
+      customerInfo: {
+        receiverName:    selectedAssignment?.customer_name    || document.getElementById('customerName')?.value || '',
+        receiverPhone:   selectedAssignment?.customer_phone   || document.getElementById('customerPhone')?.value || '',
+        receiverAddress: selectedAssignment?.customer_address || installAddress,
+        productName:     selectedAssignment?.product_name     || '',
+        assignmentId:    selectedAssignment?.assignment_id    || ocrData?.assignmentId || ''
+      },
       packages: selectedPackages,
       packagePositions,
-      installDate, // 빈 값 가능
-      installTime, // 빈 값 가능
+      installDate,
+      installTime,
       installAddress,
       notes,
       installerName,
       attachmentImage: imageBase64,
       attachmentFileName: imageFileName,
-      status: 'draft', // 임시 저장은 항상 draft 상태
+      status: 'draft',
+      assignmentId: selectedAssignment?.assignment_id || ocrData?.assignmentId || null,
       createdAt: new Date().toISOString()
     };
     
@@ -1352,6 +1875,15 @@ async function saveDraftReport() {
         }
         
         currentReportId = reportData.reportId;
+
+        // ★ assignment 로컬 상태를 서버 동기화 규칙과 동일하게 업데이트
+        // 서버: draft+날짜없음 → adjusting, draft+날짜있음 → in_progress
+        if (selectedAssignment?.assignment_id) {
+          const syncedStatus = (!installDate || installDate === '') ? 'adjusting' : 'in_progress';
+          selectedAssignment.status = syncedStatus;
+          const idx = currentAssignments.findIndex(x => x.assignment_id === selectedAssignment.assignment_id);
+          if (idx >= 0) currentAssignments[idx].status = syncedStatus;
+        }
         
         // 날짜 미정 여부에 따라 다른 메시지
         if (!installDate || installDate === '') {
@@ -1361,7 +1893,9 @@ async function saveDraftReport() {
         }
         
         // Step 5로 이동
-        showStep(5);
+        currentStep = 5;
+        updateStepIndicator();
+        showCurrentSection();
       } else {
         throw new Error(response.data.message || 'Server save failed');
       }
@@ -1396,16 +1930,39 @@ async function saveDraftReport() {
       alert(`✅ 임시 저장되었습니다! (오프라인)\n\n문서 ID: ${reportDataForLocal.reportId}\n\n인터넷 연결 후 다시 저장해주세요.`);
       
       // Step 5로 이동
-      showStep(5);
+      currentStep = 5;
+      updateStepIndicator();
+      showCurrentSection();
     }
   } catch (error) {
     console.error('Draft save error:', error);
     alert('❌ 저장 중 오류가 발생했습니다.\n\n' + error.message);
+  } finally {
+    isSavingDraft = false;
+    setBtnLoading('saveDraftBtn', false);
   }
 }
 
 // 시공 확인서 저장
+// ── 버튼 로딩 헬퍼 (이중클릭 방지 공통) ─────────────────────────
+function setBtnLoading(btnId, on, defaultHtml) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = on;
+  if (on) {
+    btn.dataset.origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>처리 중...';
+  } else {
+    btn.innerHTML = defaultHtml || btn.dataset.origHtml || btn.innerHTML;
+  }
+}
+
+let isSavingReport = false;
+
 async function saveReport() {
+  if (isSavingReport) return;
+  isSavingReport = true;
+  setBtnLoading('saveReportBtn', true);
   try {
     const installerName = document.getElementById('installerName')?.value || '';
     const installDate = document.getElementById('installDate')?.value || '';
@@ -1442,9 +1999,15 @@ async function saveReport() {
     
     const reportData = {
       reportId: currentReportId || `REPORT-${Date.now()}`,
-      customerInfo: ocrData,
+      customerInfo: {
+        receiverName:    selectedAssignment?.customer_name    || document.getElementById('customerName')?.value || '',
+        receiverPhone:   selectedAssignment?.customer_phone   || document.getElementById('customerPhone')?.value || '',
+        receiverAddress: selectedAssignment?.customer_address || installAddress,
+        productName:     selectedAssignment?.product_name     || '',
+        assignmentId:    selectedAssignment?.assignment_id    || ocrData?.assignmentId || ''
+      },
       packages: selectedPackages,
-      packagePositions, // UPDATED - 3단 선반 설치 위치 데이터 추가
+      packagePositions,
       installDate,
       installTime,
       installAddress,
@@ -1452,7 +2015,8 @@ async function saveReport() {
       installerName,
       attachmentImage: imageBase64,
       attachmentFileName: imageFileName,
-      createdAt: new Date().toISOString() // 생성 시간 추가
+      assignmentId: selectedAssignment?.assignment_id || ocrData?.assignmentId || null,
+      createdAt: new Date().toISOString()
     };
     
     // 🔍 디버깅: reportData.packages 확인
@@ -1485,7 +2049,16 @@ async function saveReport() {
           console.warn('⚠️ localStorage cache failed (ignored):', cacheError); // UPDATED
         } // UPDATED
         
-        currentReportId = reportData.reportId; // UPDATED
+        currentReportId = reportData.reportId;
+
+        // ★ assignment 상태는 서버(/api/reports/save)에서 자동 동기화 처리
+        // 최종 저장(step4) 시 서버에서 confirmed(예약 확정) 로 자동 설정
+        if (selectedAssignment?.assignment_id) {
+          selectedAssignment.status = 'confirmed';
+          const idx = currentAssignments.findIndex(x => x.assignment_id === selectedAssignment.assignment_id);
+          if (idx >= 0) currentAssignments[idx].status = 'confirmed';
+        }
+
         alert(`✅ 시공 확인서가 저장되었습니다!\n\n문서 ID: ${reportData.reportId}\n\n신규 접수를 시작합니다.`);
         resetForNewReport();
       } else { // UPDATED
@@ -1541,6 +2114,9 @@ async function saveReport() {
   } catch (error) {
     console.error('Save error:', error);
     alert(error.message || '❌ 저장 중 오류가 발생했습니다.');
+  } finally {
+    isSavingReport = false;
+    setBtnLoading('saveReportBtn', false);
   }
 }
 
@@ -1549,12 +2125,17 @@ async function loadReportsList() {
   try {
     // 🔄 서버에서 먼저 불러오기 (Primary) // UPDATED
     try { // UPDATED
-      const response = await axios.get('/api/reports/list', { timeout: 10000 }); // UPDATED
-      if (response.data.success && response.data.reports.length > 0) { // UPDATED
+      // 본사 대리 접속 시 viewBranchId 파라미터 전달
+    const listUrl = viewBranchId
+      ? `/api/reports/list?viewBranchId=${viewBranchId}`
+      : '/api/reports/list';
+    const response = await axios.get(listUrl, { timeout: 10000 }); // UPDATED
+      if (response.data.success) { // ★ length > 0 제거: 서버 성공이면 0건도 그대로 표시
         console.log('✅ Loaded from server (D1):', response.data.reports.length, 'reports'); // UPDATED
-        allReports = response.data.reports; // UPDATED
+        // completed(시공완료) 문서는 5단계에서 제외 - 6단계에서만 표시
+        allReports = response.data.reports.filter(r => r.status !== 'completed'); // UPDATED
         
-        // 서버 데이터를 localStorage에 캐싱 // UPDATED
+        // 서버 데이터를 localStorage에 캐싱 (0건이면 캐시도 비움) // UPDATED
         try { // UPDATED
           localStorage.setItem('pv5_reports', JSON.stringify(allReports)); // UPDATED
           console.log('✅ Cached to localStorage'); // UPDATED
@@ -1563,13 +2144,15 @@ async function loadReportsList() {
         } // UPDATED
         
         displayReportsList(allReports); // UPDATED
+        const countEl = document.getElementById('searchResultCount');
+        if (countEl) countEl.textContent = `전체 ${allReports.length}건`;
         return; // UPDATED
       } // UPDATED
     } catch (serverError) { // UPDATED
       console.warn('⚠️ Server load failed, fallback to localStorage:', serverError); // UPDATED
     } // UPDATED
     
-    // 서버 실패 시 localStorage에서 불러오기 (Fallback) // UPDATED
+    // 서버 연결 실패 시에만 localStorage에서 불러오기 (Fallback) // UPDATED
     let localReports = [];
     try {
       localReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
@@ -1600,7 +2183,8 @@ async function loadReportsList() {
       }
     }
     
-    allReports = localReports;
+    // completed(시공완료) 문서는 5단계에서 제외 - 6단계에서만 표시
+    allReports = localReports.filter(r => r.status !== 'completed');
     displayReportsList(allReports);
     
   } catch (error) {
@@ -1623,8 +2207,12 @@ function displayReportsList(reports) {
     return;
   }
   
-  // 설치 날짜 빠른 순서로 정렬 (오름차순: 빠른 날짜가 위로)
+  // 정렬: 1)상태 우선순위(진행중 위, 완료 아래) 2)설치 날짜 오름차순
+  const statusOrder = { 'pending_report': 0, 'adjusting': 1, 'draft': 2, 'confirmed': 3, 'inst_confirmed': 4, 'completed': 5 };
   const sortedReports = [...reports].sort((a, b) => {
+    const sA = statusOrder[a.status] ?? 2;
+    const sB = statusOrder[b.status] ?? 2;
+    if (sA !== sB) return sA - sB;
     const dateA = a.install_date || a.installDate || '9999-12-31';
     const dateB = b.install_date || b.installDate || '9999-12-31';
     return dateA.localeCompare(dateB);
@@ -1674,7 +2262,9 @@ function displayReportsList(reports) {
           ${positionBadges ? `<div class="mb-2">${positionBadges}</div>` : ''} <!-- UPDATED -->
           <!-- 상태 배지 -->
           <div class="mb-2">
-            ${isDatePending ? 
+            ${report.status === 'pending_report' ?
+              '<span class="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold"><i class="fas fa-exclamation-circle mr-1"></i>작성 필요</span>' :
+              isDatePending ? 
               '<span class="inline-block px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold"><i class="fas fa-hourglass-half mr-1"></i>조율 중</span>' :
               report.status === 'draft' || !report.status ? 
               '<span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold"><i class="fas fa-clipboard-list mr-1"></i>예약 접수 중</span>' :
@@ -1692,6 +2282,12 @@ function displayReportsList(reports) {
         
         <!-- 버튼 영역: 데스크톱 (가로 배치), 모바일 (2×3 그리드) -->
         <div class="hidden md:flex md:space-x-2">
+          ${report.status === 'pending_report' ? `
+            <button onclick="resumeFromAssignment('${report.customerInfo?.assignmentId || ''}')"
+                    class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 text-sm">
+              <i class="fas fa-play mr-1"></i>이어서 작성
+            </button>
+          ` : `
           <button onclick="showReportPreview('${reportId}')" 
                   class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm">
             <i class="fas fa-eye mr-1"></i>상세보기
@@ -1725,10 +2321,17 @@ function displayReportsList(reports) {
                   class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
             <i class="fas fa-trash mr-1"></i>삭제
           </button>
+          `}
         </div>
         
         <!-- 모바일 버튼 (2×3 그리드) -->
         <div class="md:hidden grid grid-cols-2 gap-2">
+          ${report.status === 'pending_report' ? `
+            <button onclick="resumeFromAssignment('${report.customerInfo?.assignmentId || ''}')"
+                    class="col-span-2 bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 text-sm font-semibold">
+              <i class="fas fa-play mr-1"></i>이어서 작성
+            </button>
+          ` : `
           <button onclick="showReportPreview('${reportId}')" 
                   class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 text-sm font-semibold">
             <i class="fas fa-eye mr-1"></i>상세보기
@@ -1762,10 +2365,24 @@ function displayReportsList(reports) {
                   class="col-span-2 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 text-sm font-semibold">
             <i class="fas fa-trash mr-1"></i>삭제
           </button>
+          `}
         </div>
       </div>
     `;
   }).join('');
+}
+
+// 5단계에서 "이어서 작성" 클릭 → 해당 assignment 선택 후 2단계로 이동
+function resumeFromAssignment(assignmentId) {
+  if (!assignmentId) { alert('접수 정보를 찾을 수 없습니다.'); return; }
+  const a = currentAssignments.find(x => x.assignment_id === assignmentId);
+  if (!a) {
+    // currentAssignments에 없으면 1단계로 이동 후 선택 유도
+    alert('1단계로 이동합니다. "이어하기" 버튼을 눌러주세요.');
+    currentStep = 1; updateStepIndicator(); showCurrentSection();
+    return;
+  }
+  startAssignment(assignmentId);
 }
 
 // 문서 불러오기
@@ -1796,8 +2413,19 @@ async function loadReport(reportId) {
     currentReportId = reportId;
     ocrData = report.customerInfo || {};
     selectedPackages = report.packages || [];
+    // 접수일자·상품명을 ocrData에 보완 (수정하기 모드에서 4단계 표시용)
+    if (!ocrData.orderDate && report.orderDate) ocrData.orderDate = report.orderDate;
+    if (!ocrData.productName && report.customerInfo?.productName) ocrData.productName = report.customerInfo.productName;
     
     // 입력 필드 복원
+    if (report.customerInfo?.receiverName) {
+      const el = document.getElementById('customerName');
+      if (el) el.value = report.customerInfo.receiverName;
+    }
+    if (report.customerInfo?.receiverPhone) {
+      const el = document.getElementById('customerPhone');
+      if (el) el.value = report.customerInfo.receiverPhone;
+    }
     if (report.installDate) document.getElementById('installDate').value = report.installDate;
     if (report.installTime) document.getElementById('installTime').value = report.installTime;
     if (report.installAddress) document.getElementById('installAddress').value = report.installAddress;
@@ -1825,10 +2453,27 @@ async function loadReport(reportId) {
       }
     }
     
-    alert(`✅ 문서를 불러왔습니다!\n\n고객명: ${ocrData.receiverName || '-'}\n\n1단계부터 다시 확인하고 수정할 수 있습니다.`);
+    // ★ 핵심: report에 연결된 assignment 복원 (selectedAssignment 복원)
+    // loadReport 후 저장 시 assignmentId가 null이 되는 버그 방지
+    const reportAssignmentId = report.assignmentId || report.assignment_id || report.customerInfo?.assignmentId;
+    if (reportAssignmentId && currentAssignments && currentAssignments.length > 0) {
+      const linkedAssignment = currentAssignments.find(a => a.assignment_id === reportAssignmentId);
+      if (linkedAssignment) {
+        selectedAssignment = linkedAssignment;
+        console.log('[loadReport] selectedAssignment restored:', reportAssignmentId);
+      }
+    }
+    // currentAssignments가 비어있을 때는 assignment_id만 ocrData에 보존
+    if (reportAssignmentId && !selectedAssignment) {
+      if (!ocrData) ocrData = {};
+      ocrData.assignmentId = reportAssignmentId;
+      console.log('[loadReport] assignmentId preserved in ocrData:', reportAssignmentId);
+    }
+
+    alert(`✅ 문서를 불러왔습니다!\n\n고객명: ${ocrData.receiverName || '-'}\n\n3단계에서 확인하고 수정할 수 있습니다.`);
     
-    // 1단계로 이동
-    currentStep = 1;
+    // 3단계로 바로 이동 (제품이 없으면 2단계로)
+    currentStep = (selectedPackages && selectedPackages.length > 0) ? 3 : 2;
     updateStepIndicator();
     showCurrentSection();
     
@@ -1845,17 +2490,17 @@ async function deleteReport(reportId) {
   }
   
   try {
-    // 로컬스토리지에서 삭제
+    // 서버에서 먼저 삭제 (실패 시 중단)
+    const response = await axios.delete(`/api/reports/${reportId}`, { timeout: 10000 });
+    if (!response.data.success) {
+      alert('❌ 문서 삭제 실패: ' + (response.data.message || '오류가 발생했습니다.'));
+      return;
+    }
+
+    // 서버 삭제 성공 후 로컬스토리지에서도 삭제
     const localReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
     const filteredReports = localReports.filter(r => r.reportId !== reportId && r.id !== reportId);
     localStorage.setItem('pv5_reports', JSON.stringify(filteredReports));
-    
-    // 서버에서도 삭제 시도
-    try {
-      await axios.delete(`/api/reports/${reportId}`, { timeout: 10000 });
-    } catch (error) {
-      console.warn('Server delete failed, local storage updated:', error);
-    }
     
     alert('✅ 문서가 삭제되었습니다.');
     
@@ -1864,49 +2509,60 @@ async function deleteReport(reportId) {
     
   } catch (error) {
     console.error('Delete report error:', error);
-    alert('❌ 문서 삭제 중 오류가 발생했습니다.');
+    alert('❌ 문서 삭제 중 오류가 발생했습니다.\n' + (error.response?.data?.message || error.message || ''));
   }
 }
 
-// 문서 검색
+// ── 문서 검색 (상태 필터 추가 + 실시간 검색 결과 카운트) ──────────
 function searchReports() {
-  const startDate = document.getElementById('searchStartDate').value;
-  const endDate = document.getElementById('searchEndDate').value;
-  const customerName = document.getElementById('searchCustomerName').value.toLowerCase();
-  
+  const startDate    = document.getElementById('searchStartDate')?.value || '';
+  const endDate      = document.getElementById('searchEndDate')?.value || '';
+  const customerName = (document.getElementById('searchCustomerName')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('searchStatus')?.value || '';
+
   let filtered = [...allReports];
-  
+
   // 날짜 필터
   if (startDate) {
-    filtered = filtered.filter(r => {
-      const installDate = r.installDate || '';
-      return installDate >= startDate;
-    });
+    filtered = filtered.filter(r => (r.installDate || '') >= startDate);
   }
-  
   if (endDate) {
-    filtered = filtered.filter(r => {
-      const installDate = r.installDate || '';
-      return installDate <= endDate;
-    });
+    filtered = filtered.filter(r => (r.installDate || '') <= endDate);
   }
-  
-  // 고객명 필터
+
+  // 고객명/주소/시공자 통합 키워드 검색
   if (customerName) {
     filtered = filtered.filter(r => {
-      const name = (r.customerInfo?.receiverName || r.customerName || '').toLowerCase();
-      return name.includes(customerName);
+      const name    = (r.customerInfo?.receiverName || r.customerName || '').toLowerCase();
+      const address = (r.installAddress || '').toLowerCase();
+      const worker  = (r.installerName || '').toLowerCase();
+      return name.includes(customerName) || address.includes(customerName) || worker.includes(customerName);
     });
   }
-  
+
+  // 상태 필터
+  if (statusFilter) {
+    filtered = filtered.filter(r => (r.status || 'draft') === statusFilter);
+  }
+
+  // 결과 건수 표시
+  const countEl = document.getElementById('searchResultCount');
+  if (countEl) {
+    const total = allReports.length;
+    countEl.textContent = customerName || startDate || endDate || statusFilter
+      ? `${filtered.length} / ${total}건`
+      : `전체 ${total}건`;
+  }
+
   displayReportsList(filtered);
 }
 
 // 검색 초기화
 function resetSearch() {
-  document.getElementById('searchStartDate').value = '';
-  document.getElementById('searchEndDate').value = '';
-  document.getElementById('searchCustomerName').value = '';
+  const ids = ['searchStartDate','searchEndDate','searchCustomerName','searchStatus'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const countEl = document.getElementById('searchResultCount');
+  if (countEl) countEl.textContent = `전체 ${allReports.length}건`;
   displayReportsList(allReports);
 }
 
@@ -1977,8 +2633,8 @@ async function showReportPreview(reportId) {
                   <i class="fas fa-user-circle mr-2 text-blue-600"></i>👤 고객 정보
                 </h4>
                 <div class="grid grid-cols-2 gap-4 text-base">
-                  <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">출력일자:</strong> <span class="text-gray-900 font-semibold">${customerInfo.outputDate || '-'}</span></div>
-                  <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">상품번호:</strong> <span class="text-gray-900 font-semibold">${customerInfo.productCode || '-'}</span></div>
+                  <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">접수일자:</strong> <span class="text-gray-900 font-semibold">${report.createdAt ? new Date(report.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-'}</span></div>
+                  <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">상품명:</strong> <span class="text-gray-900 font-semibold">${packages.length > 0 ? packages.map(p => p.fullName || p.name || '').filter(Boolean).join(', ') : (customerInfo.productCode || '-')}</span></div>
                   <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">고객명:</strong> <span class="text-blue-700 font-bold text-lg">${customerInfo.receiverName || '-'}</span></div>
                   <div class="bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">연락처:</strong> <span class="text-blue-700 font-bold text-lg">${customerInfo.receiverPhone || '-'}</span></div>
                   <div class="col-span-2 bg-white p-3 rounded shadow-sm"><strong class="text-gray-700">주소:</strong> <span class="text-gray-900 font-semibold">${customerInfo.receiverAddress || '-'}</span></div>
@@ -2299,13 +2955,13 @@ async function loadReportData(reportId) {
 // 신규 접수를 위한 초기화
 function resetForNewReport() {
   console.log('Resetting for new report...');
-  
+
   // 1. 전역 변수 초기화
-  ocrData = null;
+  selectedAssignment = null;
   selectedPackages = [];
-  uploadedImageFile = null;
   currentReportId = null;
   packagePositions = {};
+  resetAccessories(); // 악세사리 선택 초기화
   
   // 2. Step 3 입력 필드 초기화
   const installDate = document.getElementById('installDate');
@@ -2325,89 +2981,94 @@ function resetForNewReport() {
   if (installerName) installerName.value = '';
   if (recipientEmail) recipientEmail.value = '';
   
-  // 4. OCR 결과 숨기기
-  const uploadResult = document.getElementById('uploadResult');
-  if (uploadResult) {
-    uploadResult.classList.add('hidden');
-    uploadResult.style.display = 'none';
-  }
-  
-  // 5. 업로드 영역 초기화
-  const dropZone = document.getElementById('dropZone');
-  if (dropZone) {
-    dropZone.innerHTML = `
-      <i class="fas fa-cloud-upload-alt text-6xl text-gray-400 mb-4"></i>
-      <p class="text-lg text-gray-600 mb-4">거래명세서 이미지를 드래그하거나 클릭하여 업로드</p>
-      <input type="file" id="fileInput" accept="image/*" class="hidden">
-      <div class="flex justify-center space-x-3">
-        <button onclick="document.getElementById('fileInput').click(); event.stopPropagation();" 
-                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-          <i class="fas fa-folder-open mr-2"></i>파일 선택
-        </button>
-        <button onclick="showManualInputForm(); event.stopPropagation();" 
-                class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition">
-          <i class="fas fa-keyboard mr-2"></i>수동 입력
-        </button>
-      </div>
-      <p class="text-xs text-gray-500 mt-4">지원 형식: JPG, PNG, GIF (최대 10MB)</p>
-    `;
-    
-    // 파일 입력 이벤트 재설정
-    setupFileUpload();
-  }
-  
-  // 6. 수동 입력 폼 제거 (있다면)
-  const manualInputForm = document.getElementById('manualInputForm');
-  if (manualInputForm) {
-    manualInputForm.remove();
-  }
-  
-  // 7. Step 1로 이동
+  // 4. Step 1로 이동 + 접수 목록 새로고침
   currentStep = 1;
   updateStepIndicator();
   showCurrentSection();
-  
-  console.log('Reset complete. Ready for new report.');
+  renderStep1AssignmentList();
+
+  console.log('Reset complete. Ready for new assignment.');
 }
 
 // Excel 내보내기
-function exportToExcel() {
+async function exportToExcel() {
   try {
-    const allReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
-    
-    if (allReports.length === 0) {
-      alert('⚠️ 내보낼 데이터가 없습니다.');
+    // ★ 전역 allReports(5단계에서 이미 로드된 최신 서버 데이터) 우선 사용
+    // 없으면 서버 API 재호출 → 그래도 없으면 localStorage fallback
+    let excelReports = (allReports && allReports.length > 0) ? allReports : [];
+
+    if (excelReports.length === 0) {
+      try {
+        const listUrl = viewBranchId
+          ? `/api/reports/list?viewBranchId=${viewBranchId}`
+          : '/api/reports/list';
+        const res = await axios.get(listUrl, { timeout: 15000 });
+        if (res.data.success && res.data.reports.length > 0) {
+          excelReports = res.data.reports;
+        }
+      } catch (serverErr) {
+        console.warn('[Excel] 서버 조회 실패, localStorage fallback:', serverErr);
+      }
+    }
+
+    // 그래도 없으면 localStorage fallback
+    if (excelReports.length === 0) {
+      excelReports = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+    }
+
+    if (excelReports.length === 0) {
+      alert('⚠️ 내보낼 데이터가 없습니다.\n5단계에서 문서 목록을 먼저 불러와 주세요.');
       return;
     }
-    
+
+    // 이하에서 excelReports 사용
+    const allReportsForExcel = excelReports;
+
     // Excel 데이터 준비
-    const excelData = allReports.map(report => {
-      const customerInfo = report.customerInfo || {};
+    const excelData = allReportsForExcel.map(report => {
+      // ★ customerInfo가 문자열로 온 경우(이중직렬화) 파싱 처리
+      let customerInfo = report.customerInfo || {};
+      if (typeof customerInfo === 'string') {
+        try { customerInfo = JSON.parse(customerInfo); } catch(e) { customerInfo = {}; }
+      }
+
       const packages = report.packages || [];
       const productNames = packages.map(pkg => pkg.fullName || pkg.name).filter(name => name && name !== '-').join(', ');
-      
+
+      // ★ 모든 가능한 필드명 커버 (구버전/신버전 데이터 혼재 대비)
+      const phone = customerInfo.receiverPhone
+                 || customerInfo.phone
+                 || customerInfo.customerPhone
+                 || report.customerPhone
+                 || '-';
+      const address = customerInfo.receiverAddress
+                   || customerInfo.address
+                   || customerInfo.customerAddress
+                   || report.installAddress
+                   || '-';
+
       return {
-        '문서ID': report.reportId || report.id || '-',
-        '고객명': customerInfo.receiverName || report.customerName || '-',
-        '연락처': customerInfo.phone || '-',
-        '주소': customerInfo.address || '-',
+        '문서ID':   report.reportId || report.id || '-',
+        '고객명':   customerInfo.receiverName || customerInfo.name || report.customerName || '-',
+        '연락처':   phone,
+        '주소':     address,
         '설치날짜': report.installDate || '-',
         '설치시간': report.installTime || '-',
         '설치주소': report.installAddress || '-',
-        '제품명': productNames || '-',
+        '제품명':   productNames || customerInfo.productName || '-',
         '특이사항': report.notes || '-',
-        '작성자': report.installerName || '-',
+        '작성자':   report.installerName || '-',
         '저장시간': report.createdAt || '-'
       };
     });
-    
+
     // Excel 워크북 생성
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '시공확인서');
-    
+
     // 컬럼 너비 자동 조정
-    const colWidths = [
+    ws['!cols'] = [
       { wch: 20 }, // 문서ID
       { wch: 12 }, // 고객명
       { wch: 15 }, // 연락처
@@ -2420,14 +3081,13 @@ function exportToExcel() {
       { wch: 12 }, // 작성자
       { wch: 20 }  // 저장시간
     ];
-    ws['!cols'] = colWidths;
-    
+
     // 파일 다운로드
     const fileName = `PV5_시공확인서_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, fileName);
-    
-    alert(`✅ Excel 파일을 내보냈습니다!\n\n문서 개수: ${allReports.length}개\n파일명: ${fileName}`);
-    
+
+    alert(`✅ Excel 파일을 내보냈습니다!\n\n문서 개수: ${allReportsForExcel.length}개\n파일명: ${fileName}`);
+
   } catch (error) {
     console.error('Excel export error:', error);
     alert('❌ Excel 내보내기 실패: ' + error.message);
@@ -2552,19 +3212,21 @@ function confirmDataReset() {
 
 // ========== Step 6: 매출 관리 기능 ==========
 
-// 예약 확정 처리
+// 예약 확정 처리 (이중클릭 방지)
+const confirmingSet = new Set();
 async function confirmReport(reportId) {
-  if (!confirm('이 예약을 확정하시겠습니까?\n\n예약 확정 후 시공 완료 처리가 가능합니다.')) {
-    return;
-  }
-  
+  if (confirmingSet.has(reportId)) return;
+  if (!confirm('이 예약을 확정하시겠습니까?\n\n예약 확정 후 시공 완료 처리가 가능합니다.')) return;
+
+  confirmingSet.add(reportId);
   try {
-    const response = await axios.patch(`/api/reports/${reportId}/confirm`);
+    const token = localStorage.getItem('token');
+    const response = await axios.patch(`/api/reports/${reportId}/confirm`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     
     if (response.data.success) {
       alert('✅ 예약이 확정되었습니다!');
-      
-      // 목록 새로고침
       loadReportsList();
     } else {
       alert('❌ 예약 확정 실패: ' + (response.data.message || '알 수 없는 오류'));
@@ -2572,20 +3234,38 @@ async function confirmReport(reportId) {
   } catch (error) {
     console.error('Confirm report error:', error);
     alert('❌ 예약 확정 중 오류가 발생했습니다.');
+  } finally {
+    confirmingSet.delete(reportId);
   }
 }
 
-// 시공 완료 처리
+// 시공 완료 처리 (이중클릭 방지)
+const completingSet = new Set();
 async function completeReport(reportId) {
-  if (!confirm('이 문서를 시공 완료로 표시하시겠습니까?\n\n시공 완료된 문서는 "매출 관리" 탭에서 확인할 수 있습니다.')) {
-    return;
-  }
-  
+  if (completingSet.has(reportId)) return;
+  if (!confirm('이 문서를 시공 완료로 표시하시겠습니까?\n\n시공 완료된 문서는 "매출 관리" 탭에서 확인할 수 있습니다.')) return;
+
+  completingSet.add(reportId);
   try {
-    const response = await axios.patch(`/api/reports/${reportId}/complete`);
+    const token = localStorage.getItem('token');
+    const response = await axios.patch(`/api/reports/${reportId}/complete`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     
     if (response.data.success) {
       alert('✅ 시공이 완료되었습니다!');
+
+      // localStorage 캐시에서도 즉시 해당 문서 status를 completed로 동기화
+      try {
+        const cached = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+        const updated = cached.map(r =>
+          (r.reportId === reportId || r.report_id === reportId)
+            ? { ...r, status: 'completed' }
+            : r
+        );
+        localStorage.setItem('pv5_reports', JSON.stringify(updated));
+      } catch(e) { /* 캐시 실패는 무시 */ }
+
       loadReportsList(); // 목록 새로고침
       
       // Step 6 (매출 관리)로 자동 이동
@@ -2630,13 +3310,19 @@ async function completeReport(reportId) {
     } else {
       alert('❌ 시공 완료 처리 중 오류가 발생했습니다.\n\n' + errorMsg);
     }
+  } finally {
+    completingSet.delete(reportId);
   }
 }
 
 // 매출 관리 목록 로드
-async function loadRevenueList(filterType = 'all', startDate = null, endDate = null) {
+async function loadRevenueList(filterType = 'all', startDate = null, endDate = null, customerName = '') {
   try {
-    const response = await axios.get('/api/reports/completed/list');
+    // 본사 대리 접속 시 viewBranchId 파라미터 전달
+    const completedUrl = viewBranchId
+      ? `/api/reports/completed/list?viewBranchId=${viewBranchId}`
+      : '/api/reports/completed/list';
+    const response = await axios.get(completedUrl);
     
     if (response.data.success) {
       const reports = response.data.reports;
@@ -2651,6 +3337,15 @@ async function loadRevenueList(filterType = 'all', startDate = null, endDate = n
       
       // 날짜 필터링
       let filteredReports = reports;
+
+      // 고객명 필터
+      if (customerName && customerName.trim() !== '') {
+        const keyword = customerName.trim().toLowerCase();
+        filteredReports = filteredReports.filter(r => {
+          const name = (r.customerInfo?.receiverName || r.customerName || '').toLowerCase();
+          return name.includes(keyword);
+        });
+      }
       
       if (filterType === 'week') {
         const today = new Date();
@@ -2721,6 +3416,7 @@ function displayRevenueList(reports) {
   const totalRevenueEl = document.getElementById('totalRevenue');
   const totalCountEl = document.getElementById('totalCount');
   const averageRevenueEl = document.getElementById('averageRevenue');
+  const totalMarginEl = document.getElementById('totalMargin');
   
   if (!tableBody) {
     console.error('revenueTableBody not found');
@@ -2731,7 +3427,7 @@ function displayRevenueList(reports) {
     // 데스크톱 테이블
     tableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
+        <td colspan="10" class="border border-gray-300 px-4 py-12 text-center text-gray-500">
           <i class="fas fa-chart-line text-6xl mb-4 block"></i>
           <p>시공 완료된 문서가 없습니다.</p>
           <p class="text-sm mt-2">Step 5에서 "시공 완료" 버튼을 클릭하세요.</p>
@@ -2751,12 +3447,14 @@ function displayRevenueList(reports) {
     if (totalRevenueEl) totalRevenueEl.textContent = '₩0';
     if (totalCountEl) totalCountEl.textContent = '0건';
     if (averageRevenueEl) averageRevenueEl.textContent = '₩0';
+    if (totalMarginEl) totalMarginEl.textContent = '₩0';
     return;
   }
   
   // 매출 통계 계산
   let totalRevenue = 0;
   let totalConsumerPrice = 0;
+  let totalMarginAmount = 0;
   const revenueDetails = [];
   
   reports.forEach(report => {
@@ -2764,21 +3462,33 @@ function displayRevenueList(reports) {
     let reportRevenue = 0;
     let reportConsumerPrice = 0;
     
+    let reportMarginAmount = 0;
+    let reportMarginRateSum = 0;
+    let reportMarginRateCount = 0;
     packages.forEach(pkg => {
       const margin = getMarginByPackageId(pkg.id);
       if (margin) {
         reportRevenue += margin.revenue;
         reportConsumerPrice += margin.consumerPrice;
+        reportMarginAmount += (margin.marginAmount || 0);
+        reportMarginRateSum += margin.marginRate;
+        reportMarginRateCount++;
       }
     });
+    const reportMarginRate = reportMarginRateCount > 0
+      ? (reportMarginRateSum / reportMarginRateCount).toFixed(1)
+      : 0;
     
     totalRevenue += reportRevenue;
     totalConsumerPrice += reportConsumerPrice;
+    totalMarginAmount += reportMarginAmount;
     
     revenueDetails.push({
       ...report,
       revenue: reportRevenue,
-      consumerPrice: reportConsumerPrice
+      consumerPrice: reportConsumerPrice,
+      marginAmount: reportMarginAmount,
+      marginRate: reportMarginRate
     });
   });
   
@@ -2787,6 +3497,7 @@ function displayRevenueList(reports) {
   if (totalRevenueEl) totalRevenueEl.textContent = '₩' + totalRevenue.toLocaleString();
   if (totalCountEl) totalCountEl.textContent = reports.length + '건';
   if (averageRevenueEl) averageRevenueEl.textContent = '₩' + averageRevenue.toLocaleString();
+  if (totalMarginEl) totalMarginEl.textContent = '₩' + totalMarginAmount.toLocaleString();
   
   // 데스크톱 테이블 목록 업데이트
   tableBody.innerHTML = revenueDetails.map(report => {
@@ -2795,23 +3506,33 @@ function displayRevenueList(reports) {
     const installerName = report.installerName || '-';
     const packages = report.packages || [];
     const productNames = packages.map(p => p.fullName || p.name).join(', ');
-    const marginRate = report.consumerPrice > 0 
-      ? ((report.revenue / report.consumerPrice) * 100).toFixed(1) 
-      : 0;
+    const marginRate = report.marginRate || 0;
     
     return `
       <tr class="hover:bg-gray-50">
+        <td class="border border-gray-300 px-3 py-3 text-center" onclick="this.querySelector('input').click()">
+          <label class="flex items-center justify-center w-full h-full cursor-pointer p-2">
+            <input type="checkbox" class="revenue-check w-5 h-5 cursor-pointer" value="${report.reportId || report.report_id}" onclick="event.stopPropagation()">
+          </label>
+        </td>
         <td class="border border-gray-300 px-4 py-3">${installDate}</td>
-        <td class="border border-gray-300 px-4 py-3 font-semibold">${customerName}</td>
-        <td class="border border-gray-300 px-4 py-3 text-sm">${productNames || '-'}</td>
+        <td class="border border-gray-300 px-4 py-3 font-semibold whitespace-nowrap">${customerName}</td>
+        <td class="border border-gray-300 px-4 py-3 text-sm font-bold">${productNames || '-'}</td>
         <td class="border border-gray-300 px-4 py-3 text-right">₩${report.consumerPrice.toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600">₩${report.revenue.toLocaleString()}</td>
+        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-center">
           <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
             ${marginRate}%
           </span>
         </td>
         <td class="border border-gray-300 px-4 py-3">${installerName}</td>
+        <td class="border border-gray-300 px-4 py-3">
+          <div class="flex flex-col gap-1">
+            <button onclick="revertToStep5('${report.reportId || report.report_id}')" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-undo mr-1"></i>5단계로</button>
+            <button onclick="openSettleModal('${report.reportId || report.report_id}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-check-circle mr-1"></i>정산완료</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
@@ -2824,9 +3545,7 @@ function displayRevenueList(reports) {
       const installerName = report.installerName || '-';
       const packages = report.packages || [];
       const productNames = packages.map(p => p.fullName || p.name).join(', ');
-      const marginRate = report.consumerPrice > 0 
-        ? ((report.revenue / report.consumerPrice) * 100).toFixed(1) 
-        : 0;
+      const marginRate = report.marginRate || 0;
       
       return `
         <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
@@ -2855,19 +3574,25 @@ function displayRevenueList(reports) {
               <p class="text-xs text-blue-600 mb-1">매출</p>
               <p class="text-base font-bold text-blue-600">₩${report.revenue.toLocaleString()}</p>
             </div>
+            <div class="bg-orange-50 p-3 rounded-lg">
+              <p class="text-xs text-orange-600 mb-1">마진금액</p>
+              <p class="text-base font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</p>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg">
+              <p class="text-xs text-green-600 mb-1">마진율</p>
+              <p class="text-base font-bold text-green-600">${marginRate}%</p>
+            </div>
           </div>
           
-          <!-- 마진율 & 접수/작성자 -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-600">마진율:</span>
-              <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                ${marginRate}%
-              </span>
-            </div>
+          <!-- 접수/작성자 -->
+          <div class="flex items-center justify-between mt-2">
             <div class="flex items-center gap-1 text-sm text-gray-600">
               <i class="fas fa-user text-gray-400"></i>
               <span>${installerName}</span>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="revertToStep5('${report.reportId || report.report_id}')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold"><i class="fas fa-undo mr-1"></i>5단계로</button>
+              <button onclick="openSettleModal('${report.reportId || report.report_id}')" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-check-circle mr-1"></i>정산완료</button>
             </div>
           </div>
         </div>
@@ -2879,44 +3604,57 @@ function displayRevenueList(reports) {
 // 제품 ID로 매출 데이터 가져오기 (margins.ts 매핑)
 function getMarginByPackageId(packageId) {
   const marginData = {
-    'milwaukee-partition-panel': { consumerPrice: 968000, revenue: 213620, marginRate: 22.1 },
-    'milwaukee-2shelf-partition': { consumerPrice: 1210000, revenue: 251900, marginRate: 20.8 },
-    'milwaukee-3shelf-standard': { consumerPrice: 1830000, revenue: 422700, marginRate: 23.1 },
-    'milwaukee-workspace': { consumerPrice: 2230000, revenue: 483500, marginRate: 21.7 },
-    'milwaukee-3shelf-parts': { consumerPrice: 968000, revenue: 106920, marginRate: 11.0 },
-    'kia-partition-panel': { consumerPrice: 880000, revenue: 171200, marginRate: 19.5 },
-    'kia-2shelf-partition': { consumerPrice: 1210000, revenue: 210100, marginRate: 17.4 },
-    'kia-3shelf-standard': { consumerPrice: 1210000, revenue: 218900, marginRate: 18.1 },
-    'kia-workspace': { consumerPrice: 1760000, revenue: 412500, marginRate: 23.4 },
-    'milwaukee-floor-board': { consumerPrice: 990000, revenue: 265100, marginRate: 26.8 },
-    'kia-floor-board': { consumerPrice: 990000, revenue: 265100, marginRate: 26.8 },
-    'milwaukee-workstation': { consumerPrice: 4850000, revenue: 1214120, marginRate: 25.0 },
-    'milwaukee-smart': { consumerPrice: 4490000, revenue: 1153320, marginRate: 25.7 },
-    'kia-workstation': { consumerPrice: 3390000, revenue: 908200, marginRate: 26.8 },
-    'kia-smart': { consumerPrice: 3600000, revenue: 865300, marginRate: 24.0 }
+    'milwaukee-floor-board':      { consumerPrice: 990000,  revenue: 782100,  marginAmount: 265100,  marginRate: 33.9 },
+    'milwaukee-partition-panel':  { consumerPrice: 968000,  revenue: 764720,  marginAmount: 202160,  marginRate: 26.4 },
+    'milwaukee-2shelf-partition': { consumerPrice: 1210000, revenue: 955900,  marginAmount: 244900,  marginRate: 25.6 },
+    'milwaukee-3shelf-standard':  { consumerPrice: 1830000, revenue: 1445700, marginAmount: 283250,  marginRate: 19.6 },
+    'milwaukee-3shelf-parts':     { consumerPrice: 968000,  revenue: 764720,  marginAmount: 190470,  marginRate: 24.9 },
+    'milwaukee-workspace':        { consumerPrice: 2230000, revenue: 1761700, marginAmount: 511050,  marginRate: 29.0 },
+    'milwaukee-smart':            { consumerPrice: 4998000, revenue: 3948420, marginAmount: 995410,  marginRate: 25.2 },
+    'milwaukee-workstation':      { consumerPrice: 5398000, revenue: 4264420, marginAmount: 1223210, marginRate: 28.7 },
+    'kia-floor-board':            { consumerPrice: 990000,  revenue: 782100,  marginAmount: 265100,  marginRate: 33.9 },
+    'kia-partition-panel':        { consumerPrice: 880000,  revenue: 695200,  marginAmount: 195640,  marginRate: 28.1 },
+    'kia-2shelf-partition':       { consumerPrice: 990000,  revenue: 782100,  marginAmount: 216100,  marginRate: 27.6 },
+    'kia-3shelf-standard':        { consumerPrice: 1210000, revenue: 955900,  marginAmount: 249800,  marginRate: 26.1 },
+    'kia-3shelf-parts':           { consumerPrice: 880000,  revenue: 695200,  marginAmount: 167300,  marginRate: 24.1 },
+    'kia-workspace':              { consumerPrice: 1760000, revenue: 1390400, marginAmount: 455900,  marginRate: 32.8 },
+    'kia-smart':                  { consumerPrice: 4070000, revenue: 3215300, marginAmount: 926640,  marginRate: 28.8 },
+    'kia-workstation':            { consumerPrice: 4510000, revenue: 3562900, marginAmount: 1083940, marginRate: 30.4 }
   };
   
   return marginData[packageId] || null;
 }
 
-// 매출 데이터 Excel 다운로드
-function downloadRevenueExcel() {
-  // 현재 표시된 데이터 기반으로 다운로드
-  const revenueList = document.getElementById('revenueList');
-  const table = revenueList.querySelector('table');
-  
-  if (!table) {
-    alert('⚠️ 다운로드할 데이터가 없습니다.');
-    return;
+// 매출 데이터 Excel 다운로드 (6단계 버튼: exportRevenueToExcel 로 호출됨)
+function exportRevenueToExcel() {
+  try {
+    // tbody에서 데이터 행 추출
+    const tbody = document.getElementById('revenueTableBody');
+    if (!tbody || tbody.querySelectorAll('tr').length === 0) {
+      alert('⚠️ 다운로드할 매출 데이터가 없습니다.\n먼저 매출 현황을 조회해주세요.');
+      return;
+    }
+
+    // 테이블 전체를 찾아서 SheetJS로 변환
+    const table = tbody.closest('table');
+    if (!table) {
+      alert('⚠️ 테이블을 찾을 수 없습니다.');
+      return;
+    }
+
+    const wb = XLSX.utils.table_to_book(table, { sheet: '매출관리' });
+    const today = new Date().toISOString().split('T')[0];
+    const fileName = `PV5_매출관리_${today}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    alert(`✅ Excel 파일이 다운로드되었습니다!\n\n파일명: ${fileName}`);
+  } catch (err) {
+    console.error('exportRevenueToExcel error:', err);
+    alert('❌ Excel 다운로드 실패: ' + err.message);
   }
-  
-  // SheetJS를 이용한 Excel 생성
-  const wb = XLSX.utils.table_to_book(table, { sheet: "매출관리" });
-  const today = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `PV5_매출관리_${today}.xlsx`);
-  
-  alert('✅ Excel 파일이 다운로드되었습니다!');
 }
+
+// 하위 호환 alias
+function downloadRevenueExcel() { exportRevenueToExcel(); }
 
 // D1 마이그레이션 자동 실행
 async function runMigration() {
@@ -2991,23 +3729,407 @@ async function runConfirmedStatusMigration() {
   }
 }
 
-// 검색 필터 적용
-function applyRevenueFilter() {
-  const filterType = document.getElementById('revenueFilterType')?.value || 'all';
-  const startDate = document.getElementById('revenueStartDate')?.value;
-  const endDate = document.getElementById('revenueEndDate')?.value;
-  
-  if (filterType === 'custom') {
-    if (!startDate || !endDate) {
-      alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
-      return;
-    }
-  }
-  
-  loadRevenueList(filterType, startDate, endDate);
+// ★ 검색 버튼 onclick="searchRevenue()" → 날짜 + 고객명 통합 검색
+function searchRevenue() {
+  const filterType = document.getElementById('revenuePeriodType')?.value || 'custom';
+  const startDate  = document.getElementById('revenueStartDate')?.value  || null;
+  const endDate    = document.getElementById('revenueEndDate')?.value    || null;
+  const customerName = document.getElementById('revenueSearchCustomer')?.value?.trim() || '';
+
+  // custom 선택 시 날짜 없으면 전체로 처리 (고객명만 있어도 검색 가능)
+  const effectiveFilter = (filterType === 'custom' && !startDate && !endDate) ? 'all' : filterType;
+
+  loadRevenueList(effectiveFilter, startDate, endDate, customerName);
 }
+
+// ★ 초기화 버튼 onclick="resetRevenueSearch()"
+function resetRevenueSearch() {
+  const periodEl   = document.getElementById('revenuePeriodType');
+  const startEl    = document.getElementById('revenueStartDate');
+  const endEl      = document.getElementById('revenueEndDate');
+  const customerEl = document.getElementById('revenueSearchCustomer');
+  if (periodEl)   periodEl.value   = 'custom';
+  if (startEl)    startEl.value    = '';
+  if (endEl)      endEl.value      = '';
+  if (customerEl) customerEl.value = '';
+  loadRevenueList('all', null, null, '');
+}
+
+// ★ 기간 선택 select onchange="updateRevenueFilters()"
+function updateRevenueFilters() {
+  const filterType = document.getElementById('revenuePeriodType')?.value || 'custom';
+  const startContainer = document.getElementById('revenueStartDate')?.closest('.grid');
+  // 직접 선택이 아닌 경우 날짜 필드 초기화
+  if (filterType !== 'custom') {
+    const startEl = document.getElementById('revenueStartDate');
+    const endEl   = document.getElementById('revenueEndDate');
+    if (startEl) startEl.value = '';
+    if (endEl)   endEl.value   = '';
+  }
+  // 선택 즉시 필터 적용
+  const customerName = document.getElementById('revenueSearchCustomer')?.value?.trim() || '';
+  const startDate = document.getElementById('revenueStartDate')?.value || null;
+  const endDate   = document.getElementById('revenueEndDate')?.value   || null;
+  const effective = (filterType === 'custom' && !startDate && !endDate) ? 'all' : filterType;
+  loadRevenueList(effective, startDate, endDate, customerName);
+}
+
+// 하위 호환 alias
+function applyRevenueFilter() { searchRevenue(); }
 
 // ========================================
 // ========================================
 // Step 6: 매출 관리
 // ========================================
+
+
+// ========================================
+// Step 7: 정산 내역 기능
+// ========================================
+
+let currentSettleReportId = null;
+
+// 정산완료 모달 열기
+function openSettleModal(reportId) {
+  currentSettleReportId = reportId;
+  // 기본 라벨 자동 생성 (예: 2026년 3월 정산)
+  const now = new Date();
+  const defaultLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 정산`;
+  document.getElementById('settleLabel').value = defaultLabel;
+  document.getElementById('settleModal').classList.remove('hidden');
+}
+
+// 정산완료 모달 닫기
+function closeSettleModal() {
+  currentSettleReportId = null;
+  document.getElementById('settleModal').classList.add('hidden');
+}
+
+// 정산완료 확인
+async function confirmSettle() {
+  if (!currentSettleReportId) return;
+  const label = document.getElementById('settleLabel').value.trim();
+  if (!label) { alert('정산 라벨을 입력해주세요.'); return; }
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post(`/api/reports/${currentSettleReportId}/settle`,
+      { settledLabel: label },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      closeSettleModal();
+      alert(`✅ 정산 완료!\n"${label}"으로 이동되었습니다.`);
+      loadRevenueList();
+    } else {
+      alert('❌ ' + (res.data.error || '정산 처리 실패'));
+    }
+  } catch (e) {
+    alert('❌ 정산 처리 중 오류가 발생했습니다.');
+  }
+}
+
+// 6단계로 되돌리기 (시공완료로 복원)
+async function revertToStep5(reportId) {
+  if (!confirm('이 문서를 5단계(저장문서)로 되돌리시겠습니까?\n\n6단계 매출관리에서 사라집니다.')) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.patch(`/api/reports/${reportId}/revert-complete`, {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      alert('✅ 5단계로 이동되었습니다.');
+      loadRevenueList();
+    } else {
+      alert('❌ ' + (res.data.error || '되돌리기 실패'));
+    }
+  } catch (e) {
+    alert('❌ 되돌리기 중 오류가 발생했습니다.');
+  }
+}
+
+// 정산내역 목록 로드
+async function loadSettlementList() {
+  const container = document.getElementById('settlementList');
+  if (!container) return;
+  try {
+    const token = localStorage.getItem('token');
+    const url = viewBranchId
+      ? `/api/reports/settled/list?viewBranchId=${viewBranchId}`
+      : '/api/reports/settled/list';
+    const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.data.success || res.data.reports.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12 text-gray-500">
+          <i class="fas fa-archive text-6xl mb-4 block"></i>
+          <p>정산 완료된 내역이 없습니다.</p>
+        </div>`;
+      return;
+    }
+    // 월별 그룹핑
+    const grouped = {};
+    res.data.reports.forEach(r => {
+      const label = r.settled_label || '미분류';
+      if (!grouped[label]) grouped[label] = [];
+      grouped[label].push(r);
+    });
+
+    container.innerHTML = Object.entries(grouped).map(([label, reports]) => {
+      // 해당 그룹 총 매출 계산
+      let groupRevenue = 0;
+      reports.forEach(report => {
+        const pkgs = report.packages || [];
+        pkgs.forEach(pkg => {
+          const m = getMarginByPackageId(pkg.id);
+          if (m) groupRevenue += m.revenue;
+        });
+      });
+
+      const rows = reports.map(report => {
+        const customerName = report.customer_info?.receiverName || '-';
+        const installDate = report.install_date || '-';
+        const installerName = report.installer_name || '-';
+        const pkgs = report.packages || [];
+        const productNames = pkgs.map(p => p.fullName || p.name).join(', ') || '-';
+        let revenue = 0;
+        pkgs.forEach(pkg => { const m = getMarginByPackageId(pkg.id); if (m) revenue += m.revenue; });
+        return `
+          <tr class="hover:bg-purple-50">
+            <td class="border border-gray-200 px-3 py-2 text-sm">${installDate}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm font-semibold">${customerName}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm">${productNames}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm text-right font-bold text-blue-600">₩${revenue.toLocaleString()}</td>
+            <td class="border border-gray-200 px-3 py-2 text-sm">${installerName}</td>
+            <td class="border border-gray-200 px-3 py-2 text-center">
+              <button onclick="revertToStep6('${report.report_id}')"
+                class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold whitespace-nowrap">
+                <i class="fas fa-undo mr-1"></i>6단계로
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      return `
+        <div class="border border-purple-200 rounded-xl overflow-hidden mb-4">
+          <button onclick="toggleSettleGroup('${label}')"
+            class="w-full flex items-center justify-between bg-purple-50 hover:bg-purple-100 px-5 py-4 transition">
+            <span class="font-bold text-purple-800 text-base">
+              <i class="fas fa-folder-open mr-2"></i>${label}
+              <span class="ml-2 text-base font-bold text-purple-700">(${reports.length}건 / ₩${groupRevenue.toLocaleString()})</span>
+            </span>
+            <div class="flex items-center gap-3">
+              <button onclick="event.stopPropagation(); exportSettlementExcel('${label}')"
+                class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold whitespace-nowrap">
+                <i class="fas fa-file-excel mr-1"></i>엑셀 다운로드
+              </button>
+              <i class="fas fa-chevron-down text-purple-400" id="icon-${label}"></i>
+            </div>
+          </button>
+          <div id="group-${label}" class="hidden">
+            <!-- 데스크톱 테이블 -->
+            <div class="hidden md:block overflow-x-auto">
+              <table class="w-full border-collapse">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">시공일</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">고객명</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">제품</th>
+                    <th class="border border-gray-200 px-3 py-2 text-right text-xs font-bold text-gray-600">매출</th>
+                    <th class="border border-gray-200 px-3 py-2 text-left text-xs font-bold text-gray-600">작성자</th>
+                    <th class="border border-gray-200 px-3 py-2 text-center text-xs font-bold text-gray-600">관리</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <!-- 모바일 카드 -->
+            <div class="md:hidden divide-y divide-gray-100">
+              ${reports.map(report => {
+                const customerName = report.customer_info?.receiverName || '-';
+                const installDate = report.install_date || '-';
+                const pkgs = report.packages || [];
+                const productNames = pkgs.map(p => p.fullName || p.name).join(', ') || '-';
+                let revenue = 0;
+                pkgs.forEach(pkg => { const m = getMarginByPackageId(pkg.id); if (m) revenue += m.revenue; });
+                return `
+                  <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                      <span class="font-bold text-gray-800">${customerName}</span>
+                      <span class="text-xs text-gray-500">${installDate}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">${productNames}</p>
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-blue-600">₩${revenue.toLocaleString()}</span>
+                      <button onclick="revertToStep6('${report.report_id}')"
+                        class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold">
+                        <i class="fas fa-undo mr-1"></i>6단계로
+                      </button>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('loadSettlementList error:', e);
+    container.innerHTML = '<div class="text-center py-8 text-red-500">정산내역 로드 중 오류가 발생했습니다.</div>';
+  }
+}
+
+// 정산 그룹 토글
+function toggleSettleGroup(label) {
+  const group = document.getElementById(`group-${label}`);
+  const icon  = document.getElementById(`icon-${label}`);
+  if (!group) return;
+  const isHidden = group.classList.contains('hidden');
+  group.classList.toggle('hidden', !isHidden);
+  if (icon) icon.classList.toggle('fa-chevron-down', !isHidden);
+  if (icon) icon.classList.toggle('fa-chevron-up', isHidden);
+}
+
+// 정산내역 → 6단계로 되돌리기
+async function revertToStep6(reportId) {
+  if (!confirm('이 문서를 6단계(매출관리)로 되돌리시겠습니까?')) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post(`/api/reports/${reportId}/unsettle`, {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data.success) {
+      alert('✅ 6단계 매출관리로 이동되었습니다.');
+      loadSettlementList();
+    } else {
+      alert('❌ ' + (res.data.error || '되돌리기 실패'));
+    }
+  } catch (e) {
+    alert('❌ 오류가 발생했습니다.');
+  }
+}
+
+// ========================================
+// 6단계: 일괄 정산완료 기능
+// ========================================
+
+// 전체선택 토글
+function toggleSelectAllRevenue(checkbox) {
+  document.querySelectorAll('.revenue-check').forEach(cb => {
+    cb.checked = checkbox.checked;
+  });
+}
+
+// 일괄 정산완료 모달 열기
+function openBulkSettleModal() {
+  const checked = document.querySelectorAll('.revenue-check:checked');
+  if (checked.length === 0) {
+    alert('⚠️ 정산할 항목을 먼저 선택해주세요.');
+    return;
+  }
+  const now = new Date();
+  const defaultLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 정산`;
+  document.getElementById('settleLabel').value = defaultLabel;
+  // 일괄 모드 표시
+  document.getElementById('settleModal').dataset.bulk = 'true';
+  document.getElementById('settleModal').classList.remove('hidden');
+}
+
+// 기존 confirmSettle 덮어쓰기 (단건 + 일괄 통합)
+async function confirmSettle() {
+  const label = document.getElementById('settleLabel').value.trim();
+  if (!label) { alert('정산 라벨을 입력해주세요.'); return; }
+
+  const isBulk = document.getElementById('settleModal').dataset.bulk === 'true';
+
+  if (isBulk) {
+    // 일괄 처리
+    const checked = document.querySelectorAll('.revenue-check:checked');
+    if (checked.length === 0) { closeSettleModal(); return; }
+    const ids = Array.from(checked).map(cb => cb.value);
+    closeSettleModal();
+    let successCount = 0;
+    const token = localStorage.getItem('token');
+    for (const id of ids) {
+      try {
+        const res = await axios.post(`/api/reports/${id}/settle`,
+          { settledLabel: label },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.data.success) successCount++;
+      } catch(e) { console.error('bulk settle error:', id, e); }
+    }
+    alert(`✅ ${successCount}건 정산 완료!\n"${label}"으로 이동되었습니다.`);
+    // 전체선택 체크박스 초기화
+    const selectAll = document.getElementById('selectAllRevenue');
+    if (selectAll) selectAll.checked = false;
+    loadRevenueList();
+  } else {
+    // 단건 처리 (기존 로직)
+    if (!currentSettleReportId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`/api/reports/${currentSettleReportId}/settle`,
+        { settledLabel: label },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        closeSettleModal();
+        alert(`✅ 정산 완료!\n"${label}"으로 이동되었습니다.`);
+        loadRevenueList();
+      } else {
+        alert('❌ ' + (res.data.error || '정산 처리 실패'));
+      }
+    } catch (e) {
+      alert('❌ 정산 처리 중 오류가 발생했습니다.');
+    }
+  }
+}
+
+// closeSettleModal 재정의 (bulk 플래그 초기화 포함)
+const _origCloseSettleModal = closeSettleModal;
+closeSettleModal = function() {
+  currentSettleReportId = null;
+  const modal = document.getElementById('settleModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.dataset.bulk = 'false';
+  }
+};
+
+// ========================================
+// 7단계: 정산내역 엑셀 다운로드
+// ========================================
+function exportSettlementExcel(label) {
+  try {
+    if (typeof XLSX === 'undefined') {
+      alert('⚠️ 엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    // settlementData 캐시에서 해당 라벨 데이터 추출
+    const container = document.getElementById('settlementList');
+    if (!container) { alert('⚠️ 정산내역을 먼저 로드해주세요.'); return; }
+
+    // DOM 테이블에서 데이터 추출
+    const groupEl = document.getElementById(`group-${label}`);
+    if (!groupEl) { alert('⚠️ 해당 정산 그룹을 찾을 수 없습니다.'); return; }
+
+    const table = groupEl.querySelector('table');
+    if (!table) { alert('⚠️ 데이터가 없습니다.'); return; }
+
+    // 펼쳐져 있지 않으면 잠깐 펼쳐서 데이터 추출
+    const wasHidden = groupEl.classList.contains('hidden');
+    if (wasHidden) groupEl.classList.remove('hidden');
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, label.substring(0, 31));
+
+    if (wasHidden) groupEl.classList.add('hidden');
+
+    const fileName = `${label}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    alert(`✅ 엑셀 파일이 다운로드되었습니다!\n\n파일명: ${fileName}`);
+  } catch (err) {
+    console.error('exportSettlementExcel error:', err);
+    alert('❌ 엑셀 다운로드 중 오류가 발생했습니다.');
+  }
+}

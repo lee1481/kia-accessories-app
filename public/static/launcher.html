@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기아 순정 액세서리 설치 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+        
+        * {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(to bottom, #0a1628 0%, #0f172a 30%, #1e293b 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .launcher-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-logo {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+            padding: 10px 20px;
+            border-radius: 0;
+            box-shadow: none;
+            margin-bottom: 20px;
+        }
+        
+        /* KIA Showcase Section */
+        .showcase-banner {
+            width: 100%;
+            border-radius: 32px;
+            overflow: hidden;
+            margin-bottom: 60px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .showcase-banner img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        /* Branch Grid */
+        .branch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 28px;
+            margin-bottom: 80px;
+        }
+        
+        .branch-card {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            padding: 40px 28px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .branch-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .branch-card::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            transition: all 0.6s;
+        }
+        
+        .branch-card:hover {
+            transform: translateY(-12px) scale(1.03);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 25px 70px rgba(0, 0, 0, 0.4),
+                0 0 60px rgba(var(--glow-color), 0.3);
+        }
+        
+        .branch-card:hover::before {
+            opacity: 1;
+        }
+        
+        .branch-card:hover::after {
+            width: 300px;
+            height: 300px;
+        }
+        
+        /* 3D Icon Container */
+        .branch-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .branch-icon::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 26px;
+            padding: 2px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .branch-card:hover .branch-icon {
+            transform: translateZ(20px) rotateY(10deg) scale(1.15);
+        }
+        
+        .branch-card:hover .branch-icon::before {
+            opacity: 1;
+        }
+        
+        .branch-icon i {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transition: all 0.5s;
+        }
+        
+        .branch-card:hover .branch-icon i {
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+            transform: scale(1.1);
+        }
+        
+        .branch-name {
+            font-size: 1.375rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 6px;
+            letter-spacing: -0.02em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .branch-subtitle {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        
+        /* 각 지사별 고유 색상 & Glow */
+        .branch-card[data-branch="hq"] {
+            --glow-color: 139, 92, 246;
+        }
+        .branch-card[data-branch="hq"] .branch-icon {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            box-shadow: 
+                0 10px 40px rgba(139, 92, 246, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="seoul"] {
+            --glow-color: 59, 130, 246;
+        }
+        .branch-card[data-branch="seoul"] .branch-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 
+                0 10px 40px rgba(59, 130, 246, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="gyeongbuk"] {
+            --glow-color: 16, 185, 129;
+        }
+        .branch-card[data-branch="gyeongbuk"] .branch-icon {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 
+                0 10px 40px rgba(16, 185, 129, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="honam"] {
+            --glow-color: 245, 158, 11;
+        }
+        .branch-card[data-branch="honam"] .branch-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 
+                0 10px 40px rgba(245, 158, 11, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="gyeongnam"] {
+            --glow-color: 239, 68, 68;
+        }
+        .branch-card[data-branch="gyeongnam"] .branch-icon {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 
+                0 10px 40px rgba(239, 68, 68, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+
+        /* 실제 DB 지사 코드에 맞는 셀렉터 추가 */
+        .branch-card[data-branch="busan-gyeongnam"] {
+            --glow-color: 6, 182, 212;
+        }
+        .branch-card[data-branch="busan-gyeongnam"] .branch-icon {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            box-shadow: 
+                0 10px 40px rgba(6, 182, 212, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .branch-card[data-branch="seoul-gyeongbuk"] {
+            --glow-color: 139, 92, 246;
+        }
+        .branch-card[data-branch="seoul-gyeongbuk"] .branch-icon {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+            box-shadow: 
+                0 10px 40px rgba(139, 92, 246, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .branch-card[data-branch="gyeonggi-gangwon"] {
+            --glow-color: 34, 197, 94;
+        }
+        .branch-card[data-branch="gyeonggi-gangwon"] .branch-icon {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            box-shadow: 
+                0 10px 40px rgba(34, 197, 94, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .branch-card[data-branch="chungbuk-daejeon"] {
+            --glow-color: 249, 115, 22;
+        }
+        .branch-card[data-branch="chungbuk-daejeon"] .branch-icon {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            box-shadow: 
+                0 10px 40px rgba(249, 115, 22, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="jeju"] {
+            --glow-color: 20, 184, 166;
+        }
+        .branch-card[data-branch="jeju"] .branch-icon {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+            box-shadow: 
+                0 10px 40px rgba(20, 184, 166, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="daejeon"] {
+            --glow-color: 99, 102, 241;
+        }
+        .branch-card[data-branch="daejeon"] .branch-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            box-shadow: 
+                0 10px 40px rgba(99, 102, 241, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="ocr"] {
+            --glow-color: 100, 116, 139;
+        }
+        .branch-card[data-branch="ocr"] .branch-icon {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            box-shadow: 
+                0 10px 40px rgba(100, 116, 139, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .branch-card[data-branch="admin"] {
+            --glow-color: 59, 130, 246;
+        }
+        .branch-card[data-branch="admin"] .branch-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 
+                0 10px 40px rgba(59, 130, 246, 0.4),
+                inset 0 -2px 10px rgba(0, 0, 0, 0.2),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        @media (max-width: 1024px) {
+            .showcase-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .branch-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+            
+            .branch-card {
+                padding: 32px 20px;
+            }
+            
+            .branch-icon {
+                width: 64px;
+                height: 64px;
+                font-size: 1.75rem;
+            }
+            
+            .branch-name {
+                font-size: 1.125rem;
+            }
+            
+            .showcase-info {
+                padding: 32px 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="launcher-container">
+        <!-- Header -->
+        <div class="text-center mb-16">
+            <div class="header-logo inline-block">
+                <span class="text-4xl font-black tracking-tight" style="background: linear-gradient(90deg, #6366f1, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">기아 순정 액세서리</span>
+            </div>
+            <p class="text-xl text-white/60 mt-6 font-semibold">
+                기아 순정 액세서리 설치 관리 시스템
+            </p>
+        </div>
+
+        <!-- KIA Accessories Showcase Banner -->
+        <div class="showcase-banner">
+            <img src="/static/kia-accessories.png" alt="KIA Genuine Accessories Installation">
+        </div>
+
+        <!-- Branch Grid -->
+        <div id="branchGrid" class="branch-grid">
+            <!-- 동적으로 생성됩니다 -->
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-white/50 pb-12">
+            <div class="flex items-center justify-center gap-4 mb-4">
+                <img src="/static/kvan-logo.png" alt="K-VAN" class="h-10 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
+                <span class="text-sm font-semibold">© 2026 기아 순정 액세서리 설치 관리 시스템. All rights reserved.</span>
+            </div>
+            <p class="text-xs font-semibold tracking-wider uppercase">
+                KIA Genuine Accessories Installation
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script>
+        // ── axios 전역 인증 헤더 자동 설정 ──────────────────────────────────────
+        ;(function setupAxiosAuth() {
+            const token = localStorage.getItem('token')
+            if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        })()
+
+        // ── 토큰 자동 갱신 (5분마다 체크, 만료 30분 전이면 갱신) ──────────────
+        async function autoRefreshToken() {
+            const token = localStorage.getItem('token')
+            if (!token) return
+            try {
+                const res = await axios.post('/api/auth/refresh', {}, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                if (res.data.success && res.data.refreshed && res.data.token) {
+                    localStorage.setItem('token', res.data.token)
+                    console.log('[Auth] 토큰 자동 갱신 완료')
+                }
+            } catch (err) {
+                if (err.response?.status === 401) {
+                    alert('세션이 만료되었습니다. 다시 로그인해주세요.')
+                    localStorage.removeItem('token')
+                    localStorage.removeItem('user')
+                    window.location.href = '/static/login'
+                }
+            }
+        }
+        setInterval(autoRefreshToken, 5 * 60 * 1000)
+
+        // 아이콘 매핑 (지사 코드별)
+        const iconMap = {
+            'honam': 'fa-sun',
+            'busan-gyeongnam': 'fa-anchor',
+            'seoul-gyeongbuk': 'fa-city',
+            'gyeonggi-gangwon': 'fa-mountain',
+            'chungbuk-daejeon': 'fa-rocket',
+            'default': 'fa-building'
+        }
+
+        // ── 세션 만료 공통 처리 ──────────────────────────────
+        function handleSessionExpired(msg) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            alert(msg || '세션이 만료되었습니다. 다시 로그인해주세요.')
+            window.location.href = '/static/login'
+        }
+
+        // 페이지 로드 시 토큰 서버 검증 + 로그인 체크
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token   = localStorage.getItem('token')
+            const userStr = localStorage.getItem('user')
+
+            if (!token || !userStr) {
+                window.location.href = '/static/login'
+                return
+            }
+
+            // 서버 토큰 검증 (만료/위변조 방어)
+            try {
+                const verifyRes = await axios.get('/api/auth/verify', {
+                    headers: { Authorization: `Bearer ${token}` },
+                    timeout: 5000
+                })
+                if (!verifyRes.data.success) {
+                    handleSessionExpired()
+                    return
+                }
+                // 최신 사용자 정보 반영
+                localStorage.setItem('user', JSON.stringify(verifyRes.data.user))
+            } catch (err) {
+                if (err.response?.status === 401) {
+                    handleSessionExpired()
+                    return
+                }
+                // 네트워크 오류 시 로컬 캐시로 폴백 (오프라인 허용)
+                console.warn('[Auth] 서버 검증 실패, 로컬 캐시 사용:', err.message)
+            }
+
+            const user = JSON.parse(localStorage.getItem('user'))
+
+            // 지사 목록 로드 및 아이콘 생성
+            await loadBranches(user)
+
+            // 헤더 우측: 사용자 정보 + 로그아웃 버튼
+            const header = document.querySelector('.header-logo')
+
+            const userInfo = document.createElement('div')
+            userInfo.className = 'text-white text-sm font-semibold'
+            userInfo.innerHTML = `<i class="fas fa-user-circle mr-2" style="color:#a5b4fc;"></i><span style="color:#ffffff;">${user.branchName} - ${user.username}</span>`
+            header.appendChild(userInfo)
+
+            const manualBtn = document.createElement('a')
+            manualBtn.href = '/static/manual.html'
+            manualBtn.target = '_blank'
+            manualBtn.innerHTML = '<i class="fas fa-book-open mr-2"></i>사용설명서'
+            manualBtn.className = 'text-white px-6 py-2 rounded-lg font-bold transition'
+            manualBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);margin-top:8px;text-decoration:none;display:inline-block;'
+            header.appendChild(manualBtn)
+
+            const logoutBtn = document.createElement('button')
+            logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt mr-2"></i>로그아웃'
+            logoutBtn.className = 'text-white px-6 py-2 rounded-lg font-bold transition'
+            logoutBtn.style.cssText = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);margin-top:8px;'
+            logoutBtn.onclick = async () => {
+                try { await axios.post('/api/auth/logout', {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }) } catch {}
+                // 지사 캐시 데이터 완전 초기화 (지사 간 데이터 혼재 방지)
+                localStorage.removeItem('pv5_reports')
+                localStorage.removeItem('token')
+                localStorage.removeItem('user')
+                window.location.href = '/static/login'
+            }
+            header.appendChild(logoutBtn)
+        })
+
+        // 지사 목록 로드 및 아이콘 동적 생성
+        function goToBranch(branchId) {
+            // 본사가 특정 지사를 대리 접속할 때 branchId를 URL에 포함
+            if (branchId) {
+                window.location.href = '/ocr?viewBranchId=' + branchId;
+            } else {
+                window.location.href = '/ocr';
+            }
+        }
+
+        async function loadBranches(user) {
+            try {
+                const token = localStorage.getItem('token')
+                const response = await axios.get('/api/branches/list', {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                if (!response.data.success) return
+
+                const branches = response.data.branches
+                const grid = document.getElementById('branchGrid')
+
+                // 본사 아이콘 (본사 관리자만)
+                if (user.role === 'head') {
+                    grid.innerHTML += `
+                        <a href="/static/hq" class="branch-card" data-branch="hq">
+                            <div class="branch-icon">
+                                <i class="fas fa-building text-white"></i>
+                            </div>
+                            <div class="branch-name">본사</div>
+                            <div class="branch-subtitle">Headquarters</div>
+                        </a>
+                    `
+                    
+                    // 지사 관리 아이콘 추가
+                    grid.innerHTML += `
+                        <a href="/static/branches" class="branch-card" data-branch="admin">
+                            <div class="branch-icon">
+                                <i class="fas fa-cog text-white"></i>
+                            </div>
+                            <div class="branch-name">지사 관리</div>
+                            <div class="branch-subtitle">Management</div>
+                        </a>
+                    `
+                }
+
+                // 지사 아이콘 생성
+                branches.forEach(branch => {
+                    const icon = iconMap[branch.code] || iconMap['default']
+                    // Number() 변환으로 타입 불일치 방지 (API에서 string으로 올 수 있음)
+                    const isMyBranch = user.role === 'branch' && Number(user.branchId) === Number(branch.id)
+                    const isVisible = user.role === 'head' || isMyBranch
+
+                    if (isVisible) {
+                        // 본사일 때는 branchId를 전달, 지사 계정일 때는 본인 branchId 그대로
+                        const targetBranchId = (user.role === 'head') ? branch.id : null;
+                        grid.innerHTML += `
+                            <a href="javascript:void(0)" onclick="goToBranch(${targetBranchId})" class="branch-card" data-branch="${branch.code}">
+                                <div class="branch-icon">
+                                    <i class="fas ${icon} text-white"></i>
+                                </div>
+                                <div class="branch-name">${branch.name}</div>
+                                <div class="branch-subtitle">${branch.code}</div>
+                            </a>
+                        `
+                    }
+                })
+
+            } catch (error) {
+                console.error('Load branches error:', error)
+                alert('지사 목록을 불러오는 중 오류가 발생했습니다.')
+            }
+        }
+    </script>
+</body>
+</html>
