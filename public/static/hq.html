@@ -392,7 +392,13 @@ const DEFAULT_CATEGORIES = [
 function getCategories() {
     try {
         const saved = localStorage.getItem('hq_categories')
-        return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES
+        if (!saved) return DEFAULT_CATEGORIES
+        const savedCats = JSON.parse(saved)
+        // DEFAULT_CATEGORIES에서 없는 항목은 항상 포함 (신규 차종 누락 방지)
+        const savedIds = new Set(savedCats.map(c => c.id))
+        const merged = [...savedCats]
+        DEFAULT_CATEGORIES.forEach(dc => { if (!savedIds.has(dc.id)) merged.push(dc) })
+        return merged
     } catch(e) { return DEFAULT_CATEGORIES }
 }
 
