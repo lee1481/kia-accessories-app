@@ -3587,18 +3587,15 @@ app.get('/ocr', (c) => {
                     </h2>
                     
                     <!-- 브랜드 선택 탭 -->
-                    <div class="flex space-x-4 mb-6">
-                        <button onclick="showBrand('milwaukee')" 
-                                class="brand-tab flex-1 py-3 px-6 rounded-lg font-bold transition"
-                                data-brand="milwaukee">
-                            <i class="fas fa-tools mr-2"></i>밀워키 에디션
-                        </button>
-                        <button onclick="showBrand('kia')" 
-                                class="brand-tab flex-1 py-3 px-6 rounded-lg font-bold transition"
-                                data-brand="kia">
-                            <i class="fas fa-car mr-2"></i>기아 순정형
-                        </button>
+                      <div class="flex flex-wrap gap-2 mb-6">
+                    <button onclick="showBrand('ev9')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="ev9"><i class="fas fa-car mr-2"></i>EV9</button>
+                    <button onclick="showBrand('carnival')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="carnival"><i class="fas fa-shuttle-van mr-2"></i>카니발</button>
+                    <button onclick="showBrand('sorento')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="sorento"><i class="fas fa-car mr-2"></i>쏘렌토</button>
+                    <button onclick="showBrand('sportage')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="sportage"><i class="fas fa-car mr-2"></i>스포티지</button>
+                    <button onclick="showBrand('k8')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="k8"><i class="fas fa-car mr-2"></i>K8</button>
+                    <button onclick="showBrand('tasman')" class="brand-tab flex-1 py-3 px-4 rounded-lg font-semibold text-sm border transition-all" data-brand="tasman"><i class="fas fa-truck mr-2"></i>타스만</button>
                     </div>
+
                     
                     <!-- 제품 패키지 카드 -->
                     <div id="packageGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
