@@ -431,8 +431,8 @@ async function startAssignment(assignmentId) {
   updateStepIndicator();
   showCurrentSection();
   setTimeout(() => {
-    if (allPackages.length === 0) loadPackages().then(() => showBrand('milwaukee'));
-    else showBrand('milwaukee');
+    if (allPackages.length === 0) loadPackages().then(() => showBrand('ev9'));
+    else showBrand('ev9');
   }, 200);
 }
 
@@ -452,7 +452,7 @@ function goToStep(step) {
     currentStep = step;
     updateStepIndicator();
     showCurrentSection();
-    if (step === 2) setTimeout(() => showBrand('milwaukee'), 200);
+    if (step === 2) setTimeout(() => showBrand('ev9'), 200);
     return;
   }
   if (step === currentStep) return;
@@ -461,8 +461,8 @@ function goToStep(step) {
     if (!selectedAssignment && !currentReportId) { alert('접수 목록에서 항목을 선택해주세요.'); return; }
     currentStep = 2; updateStepIndicator(); showCurrentSection();
     setTimeout(() => {
-      if (allPackages.length === 0) loadPackages().then(() => showBrand('milwaukee'));
-      else showBrand('milwaukee');
+      if (allPackages.length === 0) loadPackages().then(() => showBrand('ev9'));
+      else showBrand('ev9');
     }, 200);
   } else if (step === 3) {
     if (!selectedAssignment && !currentReportId) { alert('접수 목록에서 항목을 선택해주세요.'); return; }
@@ -1144,13 +1144,13 @@ function displayPackages(packages) {
     return `
     <div style="border: 2px solid #e2e8f0; border-radius: 0.5rem; padding: 1.5rem; background-color: white; cursor: pointer; transition: all 0.3s; ${isSelected ? 'border-color: #4299e1; background-color: #ebf8ff;' : ''}" 
          onclick="selectPackage('${pkg.id}')">
-      <div style="margin-bottom: 1rem;">
+      <div style="display: flex; gap: 1rem; align-items: center;">
         <img src="${pkg.image}" 
              alt="${pkg.name}" 
-             style="width: 100%; height: 20rem; object-fit: contain; border-radius: 0.5rem; background-color: #f7fafc;"
+             style="width: 100px; height: 75px; object-fit: cover; border-radius: 0.5rem; background-color: #f7fafc;"
              onerror="this.src='https://via.placeholder.com/400x400?text=${encodeURIComponent(pkg.name)}'">
       </div>
-      <h3 style="color: #1a202c !important; font-size: 1.125rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; display: block !important;">${pkg.name}</h3>
+      <h3 style="color: #1a202c !important; font-size: 0.95rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; display: block !important;">${pkg.name}</h3>
       <p style="color: #2563eb !important; font-size: 1.25rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; display: block !important;">₩${pkg.price.toLocaleString('ko-KR')}</p>
       <p style="color: #718096 !important; font-size: 0.875rem !important; margin-bottom: 1rem !important; display: block !important;">${pkg.description}</p>
       ${pkg.hasPositionOption ? `
@@ -1383,11 +1383,11 @@ function nextStep(step) {
     setTimeout(() => {
       if (allPackages.length === 0) {
         loadPackages().then(() => {
-          showBrand('milwaukee');
+          showBrand('ev9');
           renderAccessories();
         });
       } else {
-        showBrand('milwaukee');
+        showBrand('ev9');
         renderAccessories();
       }
     }, 200);
