@@ -3448,6 +3448,7 @@ function displayRevenueList(reports) {
   }
   
   // 매출 통계 계산
+  // 가격 구조: price = 소비자가(Total), laborCost = 장착공임(우리 매출), productCost = 상품가(원가)
   let totalRevenue = 0;
   let totalConsumerPrice = 0;
   let totalMarginAmount = 0;
@@ -3462,13 +3463,34 @@ function displayRevenueList(reports) {
     let reportMarginRateSum = 0;
     let reportMarginRateCount = 0;
     packages.forEach(pkg => {
-      const margin = getMarginByPackageId(pkg.id);
-      if (margin) {
-        reportRevenue += margin.revenue;
-        reportConsumerPrice += margin.consumerPrice;
-        reportMarginAmount += (margin.marginAmount || 0);
-        reportMarginRateSum += margin.marginRate;
+      // 1순위: allPackages에서 laborCost(장착공임) 직접 조회
+      const pkgData = allPackages.find(p => p.id === pkg.id);
+      if (pkgData && pkgData.laborCost) {
+        // 신규 KIA 순정 액세서리: laborCost = 장착공임(매출), price = 소비자가(Total)
+        const laborCost = pkgData.laborCost;
+        const consumerPrice = pkgData.price;
+        const productCost = pkgData.productCost || (consumerPrice - laborCost);
+        const marginRate = consumerPrice > 0 ? ((laborCost / consumerPrice) * 100).toFixed(1) : 0;
+        reportRevenue += laborCost;
+        reportConsumerPrice += consumerPrice;
+        reportMarginAmount += laborCost; // 장착공임이 우리 매출(마진)
+        reportMarginRateSum += parseFloat(marginRate);
         reportMarginRateCount++;
+      } else {
+        // 2순위: 기존 PV5 패키지 (구형 하드코딩 마진 테이블)
+        const margin = getMarginByPackageId(pkg.id);
+        if (margin) {
+          reportRevenue += margin.revenue;
+          reportConsumerPrice += margin.consumerPrice;
+          reportMarginAmount += (margin.marginAmount || 0);
+          reportMarginRateSum += margin.marginRate;
+          reportMarginRateCount++;
+        } else if (pkg.price) {
+          // 3순위: DB custom_packages - price만 있는 경우 (laborCost 미지정)
+          reportRevenue += pkg.price;
+          reportConsumerPrice += pkg.price;
+          reportMarginRateCount++;
+        }
       }
     });
     const reportMarginRate = reportMarginRateCount > 0
@@ -3489,8 +3511,9 @@ function displayRevenueList(reports) {
   });
   
   // 통계 업데이트
-  const averageRevenue = reports.length > 0 ? Math.round(totalRevenue / reports.length) : 0;
-  if (totalRevenueEl) totalRevenueEl.textContent = '₩' + totalRevenue.toLocaleString();
+  // totalRevenue = 소비자가 합계(Total), totalMarginAmount = 장착공임 합계(우리 매출)
+  const averageRevenue = reports.length > 0 ? Math.round(totalConsumerPrice / reports.length) : 0;
+  if (totalRevenueEl) totalRevenueEl.textContent = '₩' + totalConsumerPrice.toLocaleString();
   if (totalCountEl) totalCountEl.textContent = reports.length + '건';
   if (averageRevenueEl) averageRevenueEl.textContent = '₩' + averageRevenue.toLocaleString();
   if (totalMarginEl) totalMarginEl.textContent = '₩' + totalMarginAmount.toLocaleString();
@@ -3515,8 +3538,8 @@ function displayRevenueList(reports) {
         <td class="border border-gray-300 px-4 py-3 font-semibold whitespace-nowrap">${customerName}</td>
         <td class="border border-gray-300 px-4 py-3 text-sm font-bold">${productNames || '-'}</td>
         <td class="border border-gray-300 px-4 py-3 text-right">₩${report.consumerPrice.toLocaleString()}</td>
-        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600">₩${report.revenue.toLocaleString()}</td>
-        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</td>
+        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-blue-600">₩${(report.marginAmount || 0).toLocaleString()}</td>
+        <td class="border border-gray-300 px-4 py-3 text-right font-bold text-orange-600">₩${(report.consumerPrice - (report.marginAmount || 0)).toLocaleString()}</td>
         <td class="border border-gray-300 px-4 py-3 text-center">
           <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
             ${marginRate}%
@@ -3563,19 +3586,19 @@ function displayRevenueList(reports) {
           <!-- 매출 정보 -->
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div class="bg-gray-50 p-3 rounded-lg">
-              <p class="text-xs text-gray-600 mb-1">소비자 가격</p>
+              <p class="text-xs text-gray-600 mb-1">소비자가 (Total)</p>
               <p class="text-base font-semibold text-gray-800">₩${report.consumerPrice.toLocaleString()}</p>
             </div>
             <div class="bg-blue-50 p-3 rounded-lg">
-              <p class="text-xs text-blue-600 mb-1">매출</p>
-              <p class="text-base font-bold text-blue-600">₩${report.revenue.toLocaleString()}</p>
+              <p class="text-xs text-blue-600 mb-1">장착공임 (매출)</p>
+              <p class="text-base font-bold text-blue-600">₩${(report.marginAmount || 0).toLocaleString()}</p>
             </div>
             <div class="bg-orange-50 p-3 rounded-lg">
-              <p class="text-xs text-orange-600 mb-1">마진금액</p>
-              <p class="text-base font-bold text-orange-600">₩${(report.marginAmount || 0).toLocaleString()}</p>
+              <p class="text-xs text-orange-600 mb-1">상품가 (원가)</p>
+              <p class="text-base font-bold text-orange-600">₩${(report.consumerPrice - (report.marginAmount || 0)).toLocaleString()}</p>
             </div>
             <div class="bg-green-50 p-3 rounded-lg">
-              <p class="text-xs text-green-600 mb-1">마진율</p>
+              <p class="text-xs text-green-600 mb-1">공임 비율</p>
               <p class="text-base font-bold text-green-600">${marginRate}%</p>
             </div>
           </div>

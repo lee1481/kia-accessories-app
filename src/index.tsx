@@ -48,6 +48,8 @@ app.get('/api/packages', async (c) => {
         fullName: row.full_name,
         description: row.description || '',
         price: row.price,
+        productCost: row.product_cost || 0,
+        laborCost: row.labor_cost || 0,
         image: row.image_url || '',
         sections: [],
         isCustom: true
@@ -3947,7 +3949,7 @@ app.get('/ocr', (c) => {
                             <div class="flex items-center gap-4 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
                                 <i class="fas fa-won-sign text-3xl text-blue-200 opacity-60 sm:mb-2"></i>
                                 <div>
-                                    <p class="text-blue-100 text-sm sm:text-base mb-1">총 매출액</p>
+                                    <p class="text-blue-100 text-sm sm:text-base mb-1">총 소비자가 (Total)</p>
                                     <p class="text-2xl sm:text-3xl font-bold" id="totalRevenue">₩0</p>
                                 </div>
                             </div>
@@ -3956,7 +3958,7 @@ app.get('/ocr', (c) => {
                             <div class="flex items-center gap-4 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
                                 <i class="fas fa-piggy-bank text-3xl text-red-200 opacity-60 sm:mb-2"></i>
                                 <div>
-                                    <p class="text-red-100 text-sm sm:text-base mb-1">총 마진</p>
+                                    <p class="text-red-100 text-sm sm:text-base mb-1">총 장착공임 (매출)</p>
                                     <p class="text-2xl sm:text-3xl font-bold" id="totalMargin">₩0</p>
                                 </div>
                             </div>
@@ -3974,7 +3976,7 @@ app.get('/ocr', (c) => {
                             <div class="flex items-center gap-4 sm:flex-col sm:items-center sm:gap-0 sm:text-center">
                                 <i class="fas fa-chart-bar text-3xl text-purple-200 opacity-60 sm:mb-2"></i>
                                 <div>
-                                    <p class="text-purple-100 text-sm sm:text-base mb-1">평균 매출</p>
+                                    <p class="text-purple-100 text-sm sm:text-base mb-1">평균 소비자가</p>
                                     <p class="text-2xl sm:text-3xl font-bold" id="averageRevenue">₩0</p>
                                 </div>
                             </div>
@@ -3995,10 +3997,10 @@ app.get('/ocr', (c) => {
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">시공 날짜</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">고객명</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">제품</th>
-                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">소비자 가격</th>
-                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">매출</th>
-                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">마진금액</th>
-                                    <th class="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-700">마진율</th>
+                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">소비자가 (Total)</th>
+                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">장착공임 (매출)</th>
+                                    <th class="border border-gray-300 px-4 py-3 text-right text-sm font-bold text-gray-700">상품가 (원가)</th>
+                                    <th class="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-700">공임 비율</th>
                                     <th class="border border-gray-300 px-4 py-3 text-left text-sm font-bold text-gray-700">접수/작성자</th>
                                     <th class="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-700">관리</th>
                                 </tr>
