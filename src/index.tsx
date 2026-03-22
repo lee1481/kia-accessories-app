@@ -34,7 +34,7 @@ app.get('/launcher', (c) => {
 app.get('/api/packages', async (c) => {
   const { env } = c
   // 기본 패키지 (packages.ts 하드코딩)
-  let combined: any[] = []
+  let combined: any[] = [...allPackages]
   // custom_packages DB에서 활성화된 제품 병합
   try {
     if (env.DB) {
