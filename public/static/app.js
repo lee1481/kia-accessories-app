@@ -1439,11 +1439,6 @@ function showCurrentSection() {
   document.getElementById('settlement-section')?.classList.toggle('hidden', currentStep !== 7);
   if (currentStep === 7) loadSettlementList();
 
-  // Step 2 진입 시 악세사리 항상 렌더링
-  if (currentStep === 2) {
-    setTimeout(() => renderAccessories(), 300);
-  }
-
   // Step 1 진입 시 서버에서 최신 목록 새로고침 (상태 변경 반영)
   if (currentStep === 1) {
     renderStep1AssignmentList();

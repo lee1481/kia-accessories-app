@@ -3600,15 +3600,7 @@ app.get('/ocr', (c) => {
                     <!-- 제품 패키지 카드 -->
                     <div id="packageGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
-                    <!-- 악세사리 선택 섹션 -->
-                    <div class="mt-8 border-t border-gray-200 pt-6">
-                        <h3 class="text-lg font-bold text-gray-800 mb-1">
-                            <i class="fas fa-puzzle-piece text-orange-500 mr-2"></i>악세사리 추가 선택
-                            <span class="text-sm font-normal text-gray-500 ml-2">(선택사항)</span>
-                        </h3>
-                        <p class="text-xs text-gray-400 mb-4">수량 입력 후 추가하세요. 0이면 미선택으로 처리됩니다.</p>
-                        <div id="accessoryGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-                    </div>
+
                 </div>
 
                 <!-- Step 3: 설치 정보 입력 -->
