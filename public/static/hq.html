@@ -459,11 +459,15 @@ function deleteCategory(catId) {
 }
 
 // ── 제품 관리 ──────────────────────────────────────────────────────────────
-let allPkgData = [], allCustomPkgs = []
+let allPkgData = [], allCustomPkgs = [], allBasePackages = []
 
 async function loadProductManagement() {
-    await Promise.all([loadAllPrices(), loadCustomPackages()])
+    await Promise.all([loadAllPrices(), loadCustomPackages(), loadBasePackages()])
     renderProductTables()
+}
+
+async function loadBasePackages() {
+    try { const res = await axios.get('/api/packages'); allBasePackages = res.data.packages || [] } catch(e) {}
 }
 
 async function loadAllPrices() {
@@ -489,8 +493,20 @@ function renderProductTables() {
         brand: cp.brand, is_active: cp.is_active
     }))
 
+    // packages.ts 하드코딩 기본 제품 (DB에 없는 것만 추가)
+    const allExistingIds = new Set([...allPkgData.map(p => p.package_id), ...allCustomPkgs.map(p => p.package_id)])
+    const basePackageItems = allBasePackages
+        .filter(p => !allExistingIds.has(p.id))
+        .map(p => ({
+            package_id: p.id, package_name: p.name,
+            price: p.price,
+            updated_by: 'system',
+            updated_at: '',
+            brand: p.brand, is_active: 1
+        }))
+
     const baseItems = allPkgData.filter(p => !customIds.has(p.package_id))
-    const allItems = [...baseItems, ...customAsPriceItems]
+    const allItems = [...baseItems, ...customAsPriceItems, ...basePackageItems]
     const cats = getCategories()
     const grouped = {}
     cats.forEach(c => { grouped[c.id] = { cat: c, items: [] } })
