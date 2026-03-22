@@ -3264,8 +3264,10 @@ async function completeReport(reportId) {
         localStorage.setItem('pv5_reports', JSON.stringify(updated));
       } catch(e) { /* 캐시 실패는 무시 */ }
 
-      // Step 6 (매출 관리)로 자동 이동 — showCurrentSection()에서 loadRevenueList() 자동 호출됨
-      goToStep(6);
+      // Step 6 (매출 관리)로 강제 이동
+      currentStep = 6;
+      updateStepIndicator();
+      showCurrentSection();
     } else {
       // 마이그레이션 필요 오류
       if (response.data.needsMigration) {
