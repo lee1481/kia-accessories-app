@@ -1144,10 +1144,10 @@ function displayPackages(packages) {
     return `
     <div style="border: 2px solid #e2e8f0; border-radius: 0.5rem; padding: 1.5rem; background-color: white; cursor: pointer; transition: all 0.3s; ${isSelected ? 'border-color: #4299e1; background-color: #ebf8ff;' : ''}" 
          onclick="selectPackage('${pkg.id}')">
-      <div style="display: flex; gap: 1rem; align-items: center;">
+      <div style="width: 100%; margin-bottom: 0.75rem; border-radius: 0.5rem; overflow: hidden; background-color: #f7fafc;">
         <img src="${pkg.image}" 
              alt="${pkg.name}" 
-             style="width: 100px; height: 75px; object-fit: cover; border-radius: 0.5rem; background-color: #f7fafc;"
+             style="width: 100%; height: auto; display: block; border-radius: 0.5rem;"
              onerror="this.src='https://via.placeholder.com/400x400?text=${encodeURIComponent(pkg.name)}'">
       </div>
       <h3 style="color: #1a202c !important; font-size: 0.95rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; display: block !important;">${pkg.name}</h3>
@@ -1529,7 +1529,8 @@ function displayFinalPreview() {
             <div class="flex flex-col sm:flex-row sm:items-start sm:space-x-4">
               <img src="${pkg.image || ''}" 
                    alt="${pkg.name || ''}" 
-                   class="w-full sm:w-32 h-32 sm:h-24 object-cover rounded-lg mb-3 sm:mb-0"
+                   class="w-full sm:w-40 rounded-lg mb-3 sm:mb-0"
+                   style="height:auto;display:block;"
                    onerror="this.style.display='none'">
               <div class="flex-1">
                 <div class="font-bold text-base sm:text-lg mb-1">${pkg.fullName || '-'}</div>
@@ -2646,7 +2647,8 @@ async function showReportPreview(reportId) {
                   <div class="flex items-start space-x-4 mb-4 pb-4 ${packages.length > 1 ? 'border-b border-gray-200' : ''}">
                     <img src="${pkg.image || ''}" 
                          alt="${pkg.name || ''}" 
-                         class="w-32 h-24 object-cover rounded-lg"
+                         class="w-40 rounded-lg"
+                         style="height:auto;display:block;"
                          onerror="this.style.display='none'">
                     <div class="flex-1">
                       <div class="font-bold text-lg">${pkg.fullName || '-'}</div>
