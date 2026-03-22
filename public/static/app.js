@@ -1437,6 +1437,7 @@ function showCurrentSection() {
   document.getElementById('manage-section').classList.toggle('hidden', currentStep !== 5);
   document.getElementById('revenue-section')?.classList.toggle('hidden', currentStep !== 6);
   document.getElementById('settlement-section')?.classList.toggle('hidden', currentStep !== 7);
+  if (currentStep === 6) loadRevenueList();
   if (currentStep === 7) loadSettlementList();
 
   // Step 1 진입 시 서버에서 최신 목록 새로고침 (상태 변경 반영)
@@ -3263,9 +3264,7 @@ async function completeReport(reportId) {
         localStorage.setItem('pv5_reports', JSON.stringify(updated));
       } catch(e) { /* 캐시 실패는 무시 */ }
 
-      loadReportsList(); // 목록 새로고침
-      
-      // Step 6 (매출 관리)로 자동 이동
+      // Step 6 (매출 관리)로 자동 이동 — showCurrentSection()에서 loadRevenueList() 자동 호출됨
       goToStep(6);
     } else {
       // 마이그레이션 필요 오류

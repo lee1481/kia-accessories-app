@@ -3018,7 +3018,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL) AND branch_id = ?
+          WHERE status = 'completed' AND branch_id = ?
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `).bind(Number(user.branchId))
@@ -3031,7 +3031,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL) AND branch_id = ?
+          WHERE status = 'completed' AND branch_id = ?
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `).bind(Number(viewBranchIdCompleted))
@@ -3044,7 +3044,7 @@ app.get('/api/reports/completed/list', async (c) => {
             installer_name, image_key, image_filename,
             created_at, updated_at, status
           FROM reports
-          WHERE status = 'completed' AND (is_settled = 0 OR is_settled IS NULL)
+          WHERE status = 'completed'
           ORDER BY install_date DESC, created_at DESC
           LIMIT 1000
         `)
