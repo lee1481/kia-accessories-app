@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+hhimport { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { allPackages, getPackageById } from './packages'
@@ -34,7 +34,7 @@ app.get('/launcher', (c) => {
 app.get('/api/packages', async (c) => {
   const { env } = c
   // 기본 패키지 (packages.ts 하드코딩)
-  let combined = [...allPackages]
+  let combined: any[] = []
   // custom_packages DB에서 활성화된 제품 병합
   try {
     if (env.DB) {
