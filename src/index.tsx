@@ -30,6 +30,37 @@ app.get('/launcher', (c) => {
   return c.redirect('/static/launcher')
 })
 
+// DB 자동 초기화: status 컬럼 없으면 추가
+app.get('/api/db-init', async (c) => {
+  const { env } = c
+  if (!env.DB) return c.json({ success: false, message: 'DB not connected' })
+  const results: string[] = []
+  // reports 테이블 status 컬럼 추가
+  try {
+    await env.DB.prepare(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft'`).run()
+    results.push('reports.status 컬럼 추가 완료')
+  } catch (e: any) {
+    results.push('reports.status: ' + (e.message?.includes('duplicate') || e.message?.includes('already exists') ? '이미 존재' : e.message))
+  }
+  // reports 테이블 기타 컬럼 추가
+  for (const sql of [
+    `ALTER TABLE reports ADD COLUMN branch_id INTEGER`,
+    `ALTER TABLE reports ADD COLUMN assignment_id TEXT`,
+    `ALTER TABLE reports ADD COLUMN is_settled INTEGER DEFAULT 0`,
+    `ALTER TABLE reports ADD COLUMN settled_label TEXT`,
+    `ALTER TABLE reports ADD COLUMN settled_at DATETIME`,
+  ]) {
+    try { await env.DB.prepare(sql).run(); results.push(sql.split('ADD COLUMN')[1].trim() + ' 추가') }
+    catch (e: any) { results.push(sql.split('ADD COLUMN')[1].trim() + ': 이미존재') }
+  }
+  // 현재 reports 테이블 status 분포 확인
+  try {
+    const { results: rows } = await env.DB.prepare(`SELECT status, COUNT(*) as cnt FROM reports GROUP BY status`).all()
+    results.push('현재 status 분포: ' + JSON.stringify(rows))
+  } catch (e: any) { results.push('status 조회 실패: ' + e.message) }
+  return c.json({ success: true, results })
+})
+
 // API: 모든 제품 패키지 리스트
 app.get('/api/packages', async (c) => {
   const { env } = c
