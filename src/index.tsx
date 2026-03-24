@@ -2786,49 +2786,54 @@ app.patch('/api/reports/:id/complete', async (c) => {
       }, 500)
     }
     
-    // D1에서 상태 업데이트 (status 컬럼 없을 경우 대비)
+    // D1에서 상태 업데이트 - status 컬럼 없으면 자동 추가 후 재시도
     try {
       await env.DB.prepare(`
         UPDATE reports 
         SET status = 'completed', updated_at = datetime('now')
         WHERE report_id = ?
       `).bind(reportId).run()
-
-      // reports에 연결된 assignment_id로 assignments 상태도 동기화 (시공완료 → completed)
-      try {
-        const { results: reportRow } = await env.DB.prepare(
-          `SELECT assignment_id FROM reports WHERE report_id = ?`
-        ).bind(reportId).all()
-        if (reportRow.length > 0 && reportRow[0].assignment_id) {
-          await env.DB.prepare(`
-            UPDATE assignments SET status = 'completed' WHERE assignment_id = ?
-          `).bind(reportRow[0].assignment_id).run()
-          console.log('Assignment synced to completed (시공완료):', reportRow[0].assignment_id)
-        }
-      } catch (syncErr) {
-        console.warn('Assignment sync warning (completed):', syncErr)
-      }
-      
-      console.log('Report marked as completed:', reportId)
-      
-      return c.json({
-        success: true,
-        message: '시공이 완료되었습니다!'
-      })
     } catch (dbError) {
-      // status 컬럼이 없는 경우
       const errorMessage = dbError instanceof Error ? dbError.message : String(dbError)
-      if (errorMessage.includes('no such column: status') || errorMessage.includes('status')) {
-        console.warn('status column not found, migration needed')
-        return c.json({
-          success: false,
-          message: 'D1 마이그레이션이 필요합니다.',
-          needsMigration: true,
-          migrationGuide: 'Cloudflare Dashboard → D1 databases → kia-accessories-db → Console 탭에서 다음 SQL을 실행하세요: ALTER TABLE reports ADD COLUMN status TEXT DEFAULT \'draft\' CHECK(status IN (\'draft\', \'completed\'));'
-        }, 400)
+      if (errorMessage.includes('no such column')) {
+        // status 컬럼 자동 추가
+        console.warn('status column missing, auto-adding...')
+        try {
+          await env.DB.prepare(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft'`).run()
+        } catch (alterErr) {
+          console.warn('ALTER TABLE (may already exist):', alterErr)
+        }
+        // 재시도
+        await env.DB.prepare(`
+          UPDATE reports 
+          SET status = 'completed', updated_at = datetime('now')
+          WHERE report_id = ?
+        `).bind(reportId).run()
+      } else {
+        throw dbError
       }
-      throw dbError // 다른 오류는 외부 catch로
     }
+
+    // reports에 연결된 assignment_id로 assignments 상태도 동기화
+    try {
+      const { results: reportRow } = await env.DB.prepare(
+        `SELECT assignment_id FROM reports WHERE report_id = ?`
+      ).bind(reportId).all()
+      if (reportRow.length > 0 && reportRow[0].assignment_id) {
+        await env.DB.prepare(`
+          UPDATE assignments SET status = 'completed' WHERE assignment_id = ?
+        `).bind(reportRow[0].assignment_id).run()
+        console.log('Assignment synced to completed:', reportRow[0].assignment_id)
+      }
+    } catch (syncErr) {
+      console.warn('Assignment sync warning:', syncErr)
+    }
+
+    console.log('Report marked as completed:', reportId)
+    return c.json({
+      success: true,
+      message: '시공이 완료되었습니다!'
+    })
     
   } catch (error) {
     console.error('Complete report error:', error)
@@ -3055,13 +3060,17 @@ app.get('/api/reports/completed/list', async (c) => {
       const queryResult = await stmt.all()
       results = queryResult.results
     } catch (columnError) {
-      // status 컬럼이 없는 경우 빈 배열 반환
-      console.warn('status column not found, returning empty array:', columnError)
-      return c.json({
-        success: true,
-        reports: [],
-        message: 'D1 마이그레이션이 필요합니다. Cloudflare Dashboard에서 D1 database를 선택하고, Console 탭에서 다음 SQL을 실행하세요: ALTER TABLE reports ADD COLUMN status TEXT DEFAULT \'draft\' CHECK(status IN (\'draft\', \'completed\'));'
-      })
+      // status 컬럼이 없는 경우 자동 추가 후 재시도
+      console.warn('status column not found, auto-adding and retrying...')
+      try {
+        await env.DB.prepare(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft'`).run()
+        // 재시도
+        const retryResult = await stmt.all()
+        results = retryResult.results
+      } catch (retryErr) {
+        console.error('Retry failed after ALTER TABLE:', retryErr)
+        return c.json({ success: true, reports: [] })
+      }
     }
     
     // JSON 파싱
