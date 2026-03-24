@@ -74,9 +74,19 @@ app.get('/api/db-init', async (c) => {
       try {
         const newHash = await hashPassword(acc.password)
         await env.DB.prepare(`UPDATE users SET password = ? WHERE username = ?`).bind(newHash, acc.username).run()
-        results.push(`${acc.username} 비밀번호 재설정 완료`)
+        results.push(`${acc.username} 비밀번호 재설정 완료 (hash: ${newHash.substring(0,20)}...)`)
       } catch (e: any) { results.push(`${acc.username} 실패: ` + e.message) }
     }
+  }
+  // 현재 users 비밀번호 해시 앞부분 확인
+  const checkPwParam = c.req.query('checkpw')
+  if (checkPwParam === '1') {
+    try {
+      const { results: users } = await env.DB.prepare(`SELECT username, password FROM users`).all()
+      for (const u of users as any[]) {
+        results.push(`${u.username}: ${(u.password as string).substring(0, 15)}...`)
+      }
+    } catch (e: any) { results.push('users 조회 실패: ' + e.message) }
   }
   // 완료된 문서 1건을 draft로 리셋 (테스트용)
   const resetParam = c.req.query('reset')
