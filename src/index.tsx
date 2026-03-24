@@ -2560,6 +2560,7 @@ app.get('/api/reports/list', async (c) => {
           r.assignment_id as r_assignment_id
         FROM reports r
         WHERE (r.branch_id = ? OR r.branch_id IS NULL)
+          AND (r.status IS NULL OR r.status != 'completed')
         UNION ALL
         SELECT
           NULL as id,
@@ -2596,6 +2597,7 @@ app.get('/api/reports/list', async (c) => {
           r.assignment_id as r_assignment_id
         FROM reports r
         WHERE (r.branch_id = ? OR r.branch_id IS NULL)
+          AND (r.status IS NULL OR r.status != 'completed')
         UNION ALL
         SELECT
           NULL as id,
@@ -2631,6 +2633,7 @@ app.get('/api/reports/list', async (c) => {
           r.created_at, r.updated_at, r.status,
           r.assignment_id as r_assignment_id
         FROM reports r
+        WHERE (r.status IS NULL OR r.status != 'completed')
         UNION ALL
         SELECT
           NULL as id,
