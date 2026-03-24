@@ -58,6 +58,26 @@ app.get('/api/db-init', async (c) => {
     const { results: rows } = await env.DB.prepare(`SELECT status, COUNT(*) as cnt FROM reports GROUP BY status`).all()
     results.push('현재 status 분포: ' + JSON.stringify(rows))
   } catch (e: any) { results.push('status 조회 실패: ' + e.message) }
+  // 비밀번호 재설정 (bcrypt → PBKDF2 변환)
+  const fixPwParam = c.req.query('fixpw')
+  if (fixPwParam === '1') {
+    const accounts = [
+      { username: 'admin',     password: 'admin2026!'     },
+      { username: 'seoul',     password: 'seoul2026!'     },
+      { username: 'gyeongbuk', password: 'gyeongbuk2026!' },
+      { username: 'honam',     password: 'honam2026!'     },
+      { username: 'gyeongnam', password: 'gyeongnam2026!' },
+      { username: 'jeju',      password: 'jeju2026!'      },
+      { username: 'daejeon',   password: 'daejeon2026!'   },
+    ]
+    for (const acc of accounts) {
+      try {
+        const newHash = await hashPassword(acc.password)
+        await env.DB.prepare(`UPDATE users SET password = ? WHERE username = ?`).bind(newHash, acc.username).run()
+        results.push(`${acc.username} 비밀번호 재설정 완료`)
+      } catch (e: any) { results.push(`${acc.username} 실패: ` + e.message) }
+    }
+  }
   // 완료된 문서 1건을 draft로 리셋 (테스트용)
   const resetParam = c.req.query('reset')
   if (resetParam === '1') {
