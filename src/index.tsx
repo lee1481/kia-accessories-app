@@ -58,25 +58,26 @@ app.get('/api/db-init', async (c) => {
     const { results: rows } = await env.DB.prepare(`SELECT status, COUNT(*) as cnt FROM reports GROUP BY status`).all()
     results.push('현재 status 분포: ' + JSON.stringify(rows))
   } catch (e: any) { results.push('status 조회 실패: ' + e.message) }
-  // 비밀번호 재설정 (bcrypt → PBKDF2 변환)
+  // 비밀번호 재설정 (bcrypt → PBKDF2 변환) - 모든 유저 대상
   const fixPwParam = c.req.query('fixpw')
   if (fixPwParam === '1') {
-    const accounts = [
-      { username: 'admin',     password: 'admin2026!'     },
-      { username: 'seoul',     password: 'seoul2026!'     },
-      { username: 'gyeongbuk', password: 'gyeongbuk2026!' },
-      { username: 'honam',     password: 'honam2026!'     },
-      { username: 'gyeongnam', password: 'gyeongnam2026!' },
-      { username: 'jeju',      password: 'jeju2026!'      },
-      { username: 'daejeon',   password: 'daejeon2026!'   },
-    ]
-    for (const acc of accounts) {
-      try {
-        const newHash = await hashPassword(acc.password)
-        await env.DB.prepare(`UPDATE users SET password = ? WHERE username = ?`).bind(newHash, acc.username).run()
-        results.push(`${acc.username} 비밀번호 재설정 완료 (hash: ${newHash.substring(0,20)}...)`)
-      } catch (e: any) { results.push(`${acc.username} 실패: ` + e.message) }
-    }
+    try {
+      // DB에서 모든 유저 조회
+      const { results: allUsers } = await env.DB.prepare(`SELECT id, username, password FROM users`).all()
+      for (const u of allUsers as any[]) {
+        const pw = u.password as string
+        // 이미 PBKDF2면 스킵, bcrypt 혹은 평문이면 재설정
+        if (pw.startsWith('pbkdf2$')) {
+          results.push(`${u.username}: 이미 PBKDF2 형식 (스킵)`)
+          continue
+        }
+        // bcrypt 또는 평문 → 평문 추출 불가하므로 임시 비밀번호로 설정
+        const tempPw = u.username + '2026!'
+        const newHash = await hashPassword(tempPw)
+        await env.DB.prepare(`UPDATE users SET password = ? WHERE id = ?`).bind(newHash, u.id).run()
+        results.push(`${u.username}: 임시 비밀번호 설정 완료 → "${tempPw}"`)
+      }
+    } catch (e: any) { results.push('비밀번호 재설정 실패: ' + e.message) }
   }
   // 현재 users 비밀번호 해시 앞부분 확인
   const checkPwParam = c.req.query('checkpw')
@@ -84,7 +85,9 @@ app.get('/api/db-init', async (c) => {
     try {
       const { results: users } = await env.DB.prepare(`SELECT username, password FROM users`).all()
       for (const u of users as any[]) {
-        results.push(`${u.username}: ${(u.password as string).substring(0, 15)}...`)
+        const pw = (u.password as string)
+        const fmt = pw.startsWith('pbkdf2$') ? 'PBKDF2' : pw.startsWith('$2b$') ? 'bcrypt' : '평문'
+        results.push(`[${fmt}] ${u.username}: ${pw.substring(0, 15)}...`)
       }
     } catch (e: any) { results.push('users 조회 실패: ' + e.message) }
   }
