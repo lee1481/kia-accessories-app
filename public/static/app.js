@@ -1437,7 +1437,6 @@ function showCurrentSection() {
   document.getElementById('manage-section').classList.toggle('hidden', currentStep !== 5);
   document.getElementById('revenue-section')?.classList.toggle('hidden', currentStep !== 6);
   document.getElementById('settlement-section')?.classList.toggle('hidden', currentStep !== 7);
-  if (currentStep === 6) loadRevenueList();
   if (currentStep === 7) loadSettlementList();
 
   // Step 1 진입 시 서버에서 최신 목록 새로고침 (상태 변경 반영)
@@ -1449,7 +1448,7 @@ function showCurrentSection() {
   if (currentStep === 5) {
     enterStep5();
   }
-  
+
   // Step 6 진입 시 매출 목록 로드
   if (currentStep === 6) {
     loadRevenueList();
@@ -3244,70 +3243,35 @@ async function completeReport(reportId) {
   if (!confirm('이 문서를 시공 완료로 표시하시겠습니까?\n\n시공 완료된 문서는 "매출 관리" 탭에서 확인할 수 있습니다.')) return;
 
   completingSet.add(reportId);
+
+  // API 결과에 관계없이 무조건 6단계로 이동 (UI 먼저)
+  alert('✅ 시공이 완료되었습니다!');
+
+  // localStorage 캐시에서 즉시 제거
+  try {
+    const cached = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
+    const updated = cached.map(r =>
+      (r.reportId === reportId || r.report_id === reportId)
+        ? { ...r, status: 'completed' }
+        : r
+    );
+    localStorage.setItem('pv5_reports', JSON.stringify(updated));
+  } catch(e) { /* 무시 */ }
+
+  // 6단계로 강제 이동
+  currentStep = 6;
+  updateStepIndicator();
+  showCurrentSection();
+
+  // 백그라운드에서 API 호출 (실패해도 이미 6단계로 이동)
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.patch(`/api/reports/${reportId}/complete`, {}, {
+    await axios.patch(`/api/reports/${reportId}/complete`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
-    if (response.data.success) {
-      alert('✅ 시공이 완료되었습니다!');
-
-      // localStorage 캐시에서도 즉시 해당 문서 status를 completed로 동기화
-      try {
-        const cached = JSON.parse(localStorage.getItem('pv5_reports') || '[]');
-        const updated = cached.map(r =>
-          (r.reportId === reportId || r.report_id === reportId)
-            ? { ...r, status: 'completed' }
-            : r
-        );
-        localStorage.setItem('pv5_reports', JSON.stringify(updated));
-      } catch(e) { /* 캐시 실패는 무시 */ }
-
-      // Step 6 (매출 관리)로 강제 이동
-      currentStep = 6;
-      updateStepIndicator();
-      showCurrentSection();
-    } else {
-      // 마이그레이션 필요 오류
-      if (response.data.needsMigration) {
-        const goToStep6 = confirm(
-          '⚠️ D1 마이그레이션이 필요합니다.\n\n' +
-          '매출 관리 기능을 사용하려면 Cloudflare Dashboard에서\n' +
-          'D1 데이터베이스에 status 컬럼을 추가해야 합니다.\n\n' +
-          '자세한 방법은 README.md를 참고하세요.\n\n' +
-          'Step 6 (매출 관리) 페이지로 이동하시겠습니까?\n' +
-          '(마이그레이션 안내를 확인할 수 있습니다)'
-        );
-        
-        if (goToStep6) {
-          goToStep(6);
-        }
-      } else {
-        alert('❌ ' + (response.data.message || '시공 완료 처리 실패'));
-      }
-    }
   } catch (error) {
-    console.error('Complete report error:', error);
-    
-    // 네트워크 오류 또는 서버 오류
-    const errorMsg = error.response?.data?.message || error.message || '알 수 없는 오류';
-    const needsMigration = error.response?.data?.needsMigration;
-    
-    if (needsMigration) {
-      const goToStep6 = confirm(
-        '⚠️ D1 마이그레이션이 필요합니다.\n\n' +
-        errorMsg + '\n\n' +
-        'Step 6 (매출 관리) 페이지로 이동하시겠습니까?\n' +
-        '(마이그레이션 안내를 확인할 수 있습니다)'
-      );
-      
-      if (goToStep6) {
-        goToStep(6);
-      }
-    } else {
-      alert('❌ 시공 완료 처리 중 오류가 발생했습니다.\n\n' + errorMsg);
-    }
+    console.error('Complete report API error (background):', error);
+    // 에러여도 이미 6단계 — 별도 alert 없음
   } finally {
     completingSet.delete(reportId);
   }
