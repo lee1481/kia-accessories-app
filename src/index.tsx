@@ -2612,7 +2612,19 @@ app.get('/api/reports/list', async (c) => {
       `)
     }
     
-    const { results } = await stmt.all(); // UPDATED
+    let results: any[]
+    try {
+      const queryResult = await stmt.all()
+      results = queryResult.results
+    } catch (colErr) {
+      const msg = colErr instanceof Error ? colErr.message : String(colErr)
+      if (msg.includes('no such column')) {
+        // status 컬럼 자동 추가 후 재시도
+        await env.DB.prepare(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft'`).run().catch(() => {})
+        const retryResult = await stmt.all()
+        results = retryResult.results
+      } else { throw colErr }
+    }
     
     // JSON 파싱 // UPDATED
     const reports = results.map((row: any) => ({ // UPDATED
@@ -2733,12 +2745,20 @@ app.patch('/api/reports/:id/confirm', async (c) => {
       }
     }
 
-    // D1에서 reports 상태 업데이트
-    await env.DB.prepare(`
-      UPDATE reports 
-      SET status = 'confirmed', updated_at = datetime('now')
-      WHERE report_id = ?
-    `).bind(reportId).run()
+    // D1에서 reports 상태 업데이트 - status 컬럼 없으면 자동 추가
+    try {
+      await env.DB.prepare(`
+        UPDATE reports 
+        SET status = 'confirmed', updated_at = datetime('now')
+        WHERE report_id = ?
+      `).bind(reportId).run()
+    } catch (colErr) {
+      const msg = colErr instanceof Error ? colErr.message : String(colErr)
+      if (msg.includes('no such column')) {
+        await env.DB.prepare(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'draft'`).run().catch(() => {})
+        await env.DB.prepare(`UPDATE reports SET status = 'confirmed', updated_at = datetime('now') WHERE report_id = ?`).bind(reportId).run()
+      } else { throw colErr }
+    }
 
     // reports에 연결된 assignment_id로 assignments 상태도 동기화 (예약 확정 → in_progress)
     try {
