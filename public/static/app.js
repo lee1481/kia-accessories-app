@@ -3284,7 +3284,10 @@ async function loadRevenueList(filterType = 'all', startDate = null, endDate = n
     const completedUrl = viewBranchId
       ? `/api/reports/completed/list?viewBranchId=${viewBranchId}`
       : '/api/reports/completed/list';
-    const response = await axios.get(completedUrl);
+    const token = localStorage.getItem('token');
+    const response = await axios.get(completedUrl, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     
     if (response.data.success) {
       const reports = response.data.reports;
