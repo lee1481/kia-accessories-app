@@ -58,6 +58,20 @@ app.get('/api/db-init', async (c) => {
     const { results: rows } = await env.DB.prepare(`SELECT status, COUNT(*) as cnt FROM reports GROUP BY status`).all()
     results.push('현재 status 분포: ' + JSON.stringify(rows))
   } catch (e: any) { results.push('status 조회 실패: ' + e.message) }
+  // 완료된 문서 1건을 draft로 리셋 (테스트용)
+  const resetParam = c.req.query('reset')
+  if (resetParam === '1') {
+    try {
+      const { results: rows } = await env.DB.prepare(`SELECT report_id FROM reports WHERE status='completed' LIMIT 1`).all()
+      if (rows.length > 0) {
+        const rid = (rows[0] as any).report_id
+        await env.DB.prepare(`UPDATE reports SET status='draft' WHERE report_id=?`).bind(rid).run()
+        results.push('테스트용 리셋: ' + rid + ' → draft')
+      } else {
+        results.push('리셋할 completed 문서 없음')
+      }
+    } catch (e: any) { results.push('리셋 실패: ' + e.message) }
+  }
   return c.json({ success: true, results })
 })
 
